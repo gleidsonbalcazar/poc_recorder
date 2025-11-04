@@ -1,0 +1,37 @@
+<div class="agent-list">
+  <div class="header">
+    <h2>Agentes</h2>
+    <span class="agent-count">{{ agents.length }}</span>
+  </div>
+
+  <div class="agents-container" *ngIf="agents.length > 0; else noAgents">
+    <div
+      *ngFor="let agent of agents"
+      class="agent-card"
+      [class]="getStatusClass(agent.status)"
+      [class.selected]="selectedAgent?.agent_id === agent.agent_id"
+      (click)="onSelectAgent(agent)"
+    >
+      <div class="agent-header">
+        <div class="hostname-row">
+          <span class="status-dot" [class]="getStatusClass(agent.status)"></span>
+          <h3 class="hostname">{{ agent.hostname }}</h3>
+          <span class="selected-badge" *ngIf="selectedAgent?.agent_id === agent.agent_id">
+            ✓ SELECIONADO
+          </span>
+        </div>
+        <div class="agent-meta">
+          <span class="status-text" [class]="getStatusClass(agent.status)">{{ agent.status }}</span>
+          <span class="separator">•</span>
+          <span class="last-seen">{{ getTimeSince(agent.last_seen) }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <ng-template #noAgents>
+    <div class="no-agents">
+      <p>Nenhum agente conectado</p>
+    </div>
+  </ng-template>
+</div>

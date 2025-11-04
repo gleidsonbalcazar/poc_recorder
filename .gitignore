@@ -1,0 +1,17 @@
+# Arquivos de IA/Claude
+CLAUDE.md
+IMPLEMENTACAO.md
+.claude/
+
+# Arquivos temporários
+*.tmp
+*.log
+*.swp
+*.swo
+*~
+nul
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini

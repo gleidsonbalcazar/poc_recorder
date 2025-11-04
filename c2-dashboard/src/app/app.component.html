@@ -1,0 +1,27 @@
+<div class="app-container">
+  <header class="app-header">
+    <h1>{{ title }}</h1>
+    <p class="subtitle">POC - Sistema de Comando e Controle via SSE</p>
+  </header>
+
+  <main class="app-main">
+    <div class="left-column">
+      <app-agent-list [selectedAgent]="selectedAgent" (selectAgent)="onAgentSelected($event)"></app-agent-list>
+    </div>
+
+    <div class="right-column">
+      <!-- Media Control Section -->
+      <div *ngIf="selectedAgent" class="media-section">
+        <app-media-control [agentId]="selectedAgent!.agent_id"></app-media-control>
+        <app-media-files [agentId]="selectedAgent!.agent_id"></app-media-files>
+      </div>
+
+      <div *ngIf="!selectedAgent" class="no-agent-message">
+        <p>📌 Select an agent to access media capture features</p>
+      </div>
+
+      <!-- Results Section -->
+      <app-result-list></app-result-list>
+    </div>
+  </main>
+</div>

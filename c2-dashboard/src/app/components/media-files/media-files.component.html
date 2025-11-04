@@ -1,0 +1,133 @@
+<div class="media-files-container">
+  <div class="header">
+    <h2>📁 Media Files</h2>
+    <div class="header-actions">
+      <button class="btn btn-secondary btn-sm" (click)="loadMediaFiles()" [disabled]="loading">
+        🔄 Refresh from Server
+      </button>
+      <button class="btn btn-primary btn-sm" (click)="requestMediaList()" [disabled]="!agentId">
+        📋 Request from Agent
+      </button>
+      <button
+        class="btn btn-sm"
+        [class.btn-success]="autoRefresh"
+        [class.btn-secondary]="!autoRefresh"
+        (click)="toggleAutoRefresh()">
+        {{ autoRefresh ? '⏸ Stop Auto-Refresh' : '▶ Auto-Refresh' }}
+      </button>
+    </div>
+  </div>
+
+  <div class="last-update" *ngIf="lastUpdate">
+    Last updated: {{ lastUpdate }}
+  </div>
+
+  <!-- Storage Statistics -->
+  <div class="stats-section" *ngIf="storageStats">
+    <h3>💾 Storage Statistics</h3>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Total Files</div>
+        <div class="stat-value">{{ storageStats.total_files }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Video Files</div>
+        <div class="stat-value">{{ storageStats.video_files }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Size</div>
+        <div class="stat-value">{{ storageStats.total_size_mb.toFixed(2) }} MB</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Video Size</div>
+        <div class="stat-value">{{ storageStats.video_size_mb.toFixed(2) }} MB</div>
+      </div>
+    </div>
+
+    <div class="stat-actions">
+      <button class="btn btn-info btn-sm" (click)="requestStorageStats()" [disabled]="!agentId">
+        📊 Update Stats from Agent
+      </button>
+      <div class="clean-section">
+        <label>
+          Days old:
+          <input type="number" [(ngModel)]="cleanDays" min="1" max="365" class="days-input">
+        </label>
+        <button class="btn btn-warning btn-sm" (click)="cleanOldFiles()" [disabled]="!agentId">
+          🗑️ Clean Old Files
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Files Table -->
+  <div class="files-section">
+    <h3>📄 Files ({{ mediaFiles.length }})</h3>
+
+    <div *ngIf="loading" class="loading">
+      Loading...
+    </div>
+
+    <div *ngIf="!loading && mediaFiles.length === 0" class="no-files">
+      No media files found. Start recording to see files here.
+    </div>
+
+    <div *ngIf="!loading && mediaFiles.length > 0" class="files-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>File Name</th>
+            <th>Size</th>
+            <th>Duration</th>
+            <th>Created At</th>
+            <th>Path</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let file of mediaFiles" [class.video-row]="file.type === 'video'">
+            <td class="type-cell">
+              <span class="file-icon">{{ getFileIcon(file.type) }}</span>
+              {{ file.type }}
+            </td>
+            <td class="filename-cell">
+              <strong>{{ file.file_name }}</strong>
+            </td>
+            <td class="size-cell">
+              {{ file.size_mb.toFixed(2) }} MB
+            </td>
+            <td class="duration-cell">
+              {{ formatDuration(file.duration_minutes) }}
+            </td>
+            <td class="date-cell">
+              {{ formatDate(file.created_at) }}
+            </td>
+            <td class="path-cell">
+              <code>{{ file.file_path }}</code>
+            </td>
+            <td class="actions-cell">
+              <button class="btn btn-preview btn-sm" (click)="openPreview(file)">
+                👁️ Preview
+              </button>
+              <button class="btn btn-danger btn-sm" (click)="deleteFile(file)" [disabled]="!agentId">
+                🗑️ Delete
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Media Preview Modal -->
+  <app-media-preview
+    [show]="showPreview"
+    [mediaUrl]="previewUrl"
+    [mediaType]="previewType"
+    [fileName]="previewFileName"
+    [fileSize]="previewFileSize"
+    [duration]="previewDuration"
+    (close)="closePreview()">
+  </app-media-preview>
+</div>

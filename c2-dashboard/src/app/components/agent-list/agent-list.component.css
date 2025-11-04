@@ -1,0 +1,198 @@
+.agent-list {
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #e0e0e0;
+  padding-bottom: 10px;
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 1.5em;
+  color: #333;
+}
+
+.agent-count {
+  background: #4CAF50;
+  color: white;
+  padding: 5px 15px;
+  border-radius: 20px;
+  font-weight: bold;
+}
+
+.agents-container {
+  display: grid;
+  gap: 15px;
+}
+
+/* Agent Card - Base Styles */
+.agent-card {
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  position: relative;
+}
+
+/* Status Border Colors */
+.agent-card.status-online {
+  border-left: 5px solid #4CAF50;
+  background: #f9fdf9;
+}
+
+.agent-card.status-offline {
+  border-left: 5px solid #ff9800;
+  background: #fffaf5;
+}
+
+.agent-card.status-disconnected {
+  border-left: 5px solid #f44336;
+  background: #fff5f5;
+}
+
+/* Hover Effect */
+.agent-card:hover:not(.selected) {
+  border-color: #2196F3;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.2);
+}
+
+.agent-card:active {
+  transform: translateY(0);
+}
+
+/* Selected State */
+.agent-card.selected {
+  border: 3px solid #2196F3;
+  background: #e3f2fd;
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+}
+
+/* Agent Header */
+.agent-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Hostname Row */
+.hostname-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-dot.status-online {
+  background: #4CAF50;
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
+}
+
+.status-dot.status-offline {
+  background: #ff9800;
+  box-shadow: 0 0 0 3px rgba(255, 152, 0, 0.2);
+}
+
+.status-dot.status-disconnected {
+  background: #f44336;
+  box-shadow: 0 0 0 3px rgba(244, 67, 54, 0.2);
+}
+
+.hostname {
+  margin: 0;
+  font-size: 1.25em;
+  font-weight: 600;
+  color: #333;
+  flex: 1;
+}
+
+.selected-badge {
+  background: #2196F3;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.75em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Agent Meta */
+.agent-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9em;
+  color: #666;
+  margin-left: 22px; /* Align with hostname (status-dot width + gap) */
+}
+
+.status-text {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.status-text.status-online {
+  color: #4CAF50;
+}
+
+.status-text.status-offline {
+  color: #ff9800;
+}
+
+.status-text.status-disconnected {
+  color: #f44336;
+}
+
+.separator {
+  color: #ccc;
+}
+
+.last-seen {
+  color: #888;
+}
+
+/* No Agents */
+.no-agents {
+  text-align: center;
+  padding: 40px;
+  color: #999;
+}
+
+.no-agents p {
+  font-size: 1.1em;
+  margin: 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .hostname {
+    font-size: 1.1em;
+  }
+
+  .agent-meta {
+    font-size: 0.85em;
+    flex-wrap: wrap;
+  }
+
+  .selected-badge {
+    font-size: 0.7em;
+    padding: 3px 8px;
+  }
+}

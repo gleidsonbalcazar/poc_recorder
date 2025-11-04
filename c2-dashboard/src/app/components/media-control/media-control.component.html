@@ -1,0 +1,92 @@
+<div class="media-control-container">
+  <h2>Media Capture Control</h2>
+
+  <!-- Video Recording Section -->
+  <div class="control-section">
+    <h3>
+      🎥 Video Recording
+      <span *ngIf="recordingStatus.videoRecording" class="status-badge recording">Recording</span>
+      <span *ngIf="!recordingStatus.videoRecording" class="status-badge idle">Idle</span>
+    </h3>
+
+    <div class="control-group">
+      <div class="input-row">
+        <label>
+          Duration (seconds):
+          <input type="number" [(ngModel)]="videoDuration" min="0" max="3600" [disabled]="recordingStatus.videoRecording">
+          <span class="help-text">0 = manual stop</span>
+        </label>
+
+        <label>
+          FPS:
+          <input type="number" [(ngModel)]="videoFps" min="10" max="60" [disabled]="recordingStatus.videoRecording">
+        </label>
+      </div>
+
+      <div class="button-row">
+        <button
+          class="btn btn-success"
+          (click)="startVideoRecording()"
+          [disabled]="!agentId || recordingStatus.videoRecording">
+          ▶ Start Video
+        </button>
+
+        <button
+          class="btn btn-danger"
+          (click)="stopVideoRecording()"
+          [disabled]="!agentId || !recordingStatus.videoRecording">
+          ⏹ Stop Video
+        </button>
+      </div>
+    </div>
+
+    <!-- Periodic Recording -->
+    <div class="periodic-section">
+      <h4>
+        🔄 Periodic Recording
+        <span *ngIf="recordingStatus.periodicRecording" class="status-badge active">Active</span>
+      </h4>
+
+      <div class="input-row">
+        <label>
+          Interval (minutes):
+          <input type="number" [(ngModel)]="periodicInterval" min="1" max="1440" [disabled]="recordingStatus.periodicRecording">
+        </label>
+
+        <label>
+          Duration (minutes):
+          <input type="number" [(ngModel)]="periodicDuration" min="1" max="60" [disabled]="recordingStatus.periodicRecording">
+        </label>
+      </div>
+
+      <div class="button-row">
+        <button
+          class="btn btn-primary"
+          (click)="startPeriodicRecording()"
+          [disabled]="!agentId || recordingStatus.periodicRecording">
+          🔄 Start Periodic
+        </button>
+
+        <button
+          class="btn btn-warning"
+          (click)="stopPeriodicRecording()"
+          [disabled]="!agentId || !recordingStatus.periodicRecording">
+          ⏹ Stop Periodic
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Activity Log -->
+  <div class="log-section">
+    <div class="log-header">
+      <h3>📋 Activity Log</h3>
+      <button class="btn btn-sm btn-secondary" (click)="clearLogs()">Clear</button>
+    </div>
+
+    <div class="log-container">
+      <div *ngIf="logs.length === 0" class="log-empty">No activity yet</div>
+      <div *ngFor="let log of logs" class="log-entry">{{ log }}</div>
+    </div>
+  </div>
+</div>

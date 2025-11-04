@@ -1,0 +1,50 @@
+<div class="result-list">
+  <div class="header">
+    <h2>Resultados Recentes</h2>
+    <span class="result-count">{{ results.length }}</span>
+  </div>
+
+  <div class="results-container" *ngIf="results.length > 0; else noResults">
+    <div
+      *ngFor="let result of results"
+      class="result-card"
+      [class]="getStatusClass(result.status)"
+    >
+      <div class="result-header">
+        <div class="result-info">
+          <span class="timestamp">{{ formatTimestamp(result.timestamp) }}</span>
+          <span class="agent-id">{{ result.agent_id }}</span>
+        </div>
+        <span class="status-badge" [class]="getStatusClass(result.status)">
+          {{ result.status }}
+        </span>
+      </div>
+
+      <div class="result-body">
+        <div class="command">
+          <strong>Comando:</strong> <code>{{ result.command }}</code>
+        </div>
+
+        <div class="output" *ngIf="result.output">
+          <strong>Output:</strong>
+          <pre>{{ truncateOutput(result.output) }}</pre>
+        </div>
+
+        <div class="error" *ngIf="result.error">
+          <strong>Erro:</strong>
+          <pre>{{ result.error }}</pre>
+        </div>
+
+        <div class="exit-code">
+          <strong>Exit Code:</strong> {{ result.exit_code }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <ng-template #noResults>
+    <div class="no-results">
+      <p>Nenhum resultado disponível</p>
+    </div>
+  </ng-template>
+</div>

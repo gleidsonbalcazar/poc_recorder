@@ -1,0 +1,47 @@
+<div class="modal-overlay" *ngIf="show" (click)="onClose()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <!-- Header -->
+    <div class="modal-header">
+      <div class="file-info">
+        <h2>🎥 {{ fileName }}</h2>
+        <div class="metadata">
+          <span class="meta-item">Size: {{ formatFileSize(fileSize) }}</span>
+          <span class="meta-item" *ngIf="duration">Duration: {{ formatDuration(duration) }}</span>
+        </div>
+      </div>
+      <button class="close-btn" (click)="onClose()" title="Close">✕</button>
+    </div>
+
+    <!-- Player -->
+    <div class="player-container">
+      <!-- Loading Indicator -->
+      <div class="loading-indicator" *ngIf="loading">
+        <div class="spinner"></div>
+        <p>Loading media...</p>
+      </div>
+
+      <!-- Error Message -->
+      <div class="error-message" *ngIf="error && !loading">
+        <p>❌ Failed to load media file</p>
+        <p class="error-details">Make sure the agent is running and HTTP server is accessible.</p>
+      </div>
+
+      <!-- Video Player -->
+      <video
+        *ngIf="!error"
+        [src]="safeUrl"
+        controls
+        autoplay
+        (loadeddata)="onMediaLoad()"
+        (error)="onMediaError()"
+        class="media-player">
+        Your browser does not support the video tag.
+      </video>
+    </div>
+
+    <!-- Footer -->
+    <div class="modal-footer">
+      <p class="hint">💡 Tip: Use player controls to play, pause, seek, and adjust volume. Press ESC or click outside to close.</p>
+    </div>
+  </div>
+</div>
