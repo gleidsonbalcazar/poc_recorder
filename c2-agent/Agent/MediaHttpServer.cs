@@ -385,9 +385,43 @@ public class MediaHttpServer : IDisposable
         if (_videoRecorder != null && _videoRecorder.CurrentRecordingPath != null)
         {
             string videoPath = Path.GetFullPath(_videoRecorder.CurrentRecordingPath).ToLowerInvariant();
-            if (normalizedPath == videoPath)
+
+            // Se estiver em modo segmentação (SegmentSeconds > 0), CurrentRecordingPath é um diretório
+            if (_videoRecorder.SegmentSeconds > 0)
             {
-                return true;
+                // Verificar se arquivo requisitado está no diretório de gravação
+                if (normalizedPath.StartsWith(videoPath))
+                {
+                    // Com segmentação, apenas o segmento MAIS RECENTE pode estar sendo escrito
+                    // Segmentos anteriores já estão finalizados e podem ser servidos
+                    // Verificar se arquivo foi modificado nos últimos 60 segundos
+                    try
+                    {
+                        var fileInfo = new FileInfo(filePath);
+                        if (fileInfo.Exists)
+                        {
+                            var age = DateTime.Now - fileInfo.LastWriteTime;
+                            if (age.TotalSeconds < 60)
+                            {
+                                // Arquivo muito recente, pode estar sendo escrito
+                                return true;
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // Se não conseguiu verificar, assumir que está seguro
+                        return false;
+                    }
+                }
+            }
+            else
+            {
+                // Modo arquivo único: comparação direta
+                if (normalizedPath == videoPath)
+                {
+                    return true;
+                }
             }
         }
 

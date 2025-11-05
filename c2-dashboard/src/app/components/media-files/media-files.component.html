@@ -2,12 +2,27 @@
   <div class="header">
     <h2>📁 Media Files</h2>
     <div class="header-actions">
-      <button class="btn btn-secondary btn-sm" (click)="loadMediaFiles()" [disabled]="loading">
-        🔄 Refresh from Server
+      <!-- View Mode Toggle -->
+      <button class="btn btn-sm" 
+              [class.btn-primary]="viewMode === 'sessions'"
+              [class.btn-secondary]="viewMode === 'files'"
+              (click)="toggleViewMode()">
+        {{ viewMode === 'files' ? '📦 View Sessions' : '📄 View Files' }}
       </button>
-      <button class="btn btn-primary btn-sm" (click)="requestMediaList()" [disabled]="!agentId">
+      
+      <button class="btn btn-secondary btn-sm" 
+              (click)="viewMode === 'files' ? loadMediaFiles() : loadSessions()" 
+              [disabled]="loading">
+        🔄 Refresh
+      </button>
+      
+      <button class="btn btn-primary btn-sm" 
+              (click)="requestMediaList()" 
+              [disabled]="!agentId"
+              *ngIf="viewMode === 'files'">
         📋 Request from Agent
       </button>
+      
       <button
         class="btn btn-sm"
         [class.btn-success]="autoRefresh"
@@ -23,7 +38,7 @@
   </div>
 
   <!-- Storage Statistics -->
-  <div class="stats-section" *ngIf="storageStats">
+  <div class="stats-section" *ngIf="storageStats && viewMode === 'files'">
     <h3>💾 Storage Statistics</h3>
     <div class="stats-grid">
       <div class="stat-card">
@@ -60,8 +75,80 @@
     </div>
   </div>
 
-  <!-- Files Table -->
-  <div class="files-section">
+  <!-- Sessions View -->
+  <div class="sessions-section" *ngIf="viewMode === 'sessions'">
+    <h3>📦 Recording Sessions ({{ sessions.length }})</h3>
+
+    <div *ngIf="loading" class="loading">
+      Loading sessions...
+    </div>
+
+    <div *ngIf="!loading && sessions.length === 0" class="no-sessions">
+      No recording sessions found. Start recording to see sessions here.
+    </div>
+
+    <div *ngIf="!loading && sessions.length > 0" class="sessions-list">
+      <div *ngFor="let session of sessions" class="session-card">
+        <div class="session-header" (click)="toggleSession(session.session_key)">
+          <div class="session-info">
+            <h4>📹 {{ formatDate(session.start_time) }}</h4>
+            <div class="session-meta">
+              <span class="badge">{{ session.segment_count }} segments</span>
+              <span class="badge">{{ session.duration_minutes.toFixed(1) }} min</span>
+              <span class="badge">{{ session.total_size_mb.toFixed(2) }} MB</span>
+              <span class="badge-date">📅 {{ session.date_folder }}</span>
+            </div>
+          </div>
+          <div class="session-toggle">
+            {{ isSessionExpanded(session.session_key) ? '▼' : '▶' }}
+          </div>
+        </div>
+
+        <!-- Expanded Session Details -->
+        <div *ngIf="isSessionExpanded(session.session_key)" class="session-details">
+          <div class="session-timeline">
+            <strong>Timeline:</strong>
+            {{ formatDate(session.start_time) }} → {{ formatDate(session.end_time) }}
+          </div>
+
+          <div *ngIf="!session.segments" class="loading-segments">
+            Loading segments...
+          </div>
+
+          <div *ngIf="session.segments && session.segments.length > 0" class="segments-list">
+            <h5>Segments ({{ session.segments.length }}):</h5>
+            <table class="segments-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>File Name</th>
+                  <th>Size</th>
+                  <th>Created At</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let segment of session.segments; let i = index">
+                  <td>{{ i + 1 }}</td>
+                  <td class="filename-cell">{{ segment.file_name }}</td>
+                  <td>{{ segment.size_mb.toFixed(2) }} MB</td>
+                  <td class="date-cell">{{ formatDate(segment.created_at) }}</td>
+                  <td class="actions-cell">
+                    <button class="btn btn-preview btn-sm" (click)="openPreview(segment)">
+                      👁️ Preview
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Files View (Original) -->
+  <div class="files-section" *ngIf="viewMode === 'files'">
     <h3>📄 Files ({{ mediaFiles.length }})</h3>
 
     <div *ngIf="loading" class="loading">

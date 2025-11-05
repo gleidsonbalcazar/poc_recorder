@@ -40,3 +40,20 @@ export interface RecordingStatus {
   videoRecording: boolean;
   periodicRecording: boolean;
 }
+export interface RecordingSession {
+  session_key: string;
+  segment_count: number;
+  total_size_bytes: number;
+  total_size_mb: number;
+  start_time: string;
+  end_time: string;
+  duration_minutes: number;
+  date_folder: string;
+  segments?: MediaFile[];
+}
+
+export interface SessionsResponse {
+  agent_id: string;
+  sessions: RecordingSession[];
+  count: number;
+}

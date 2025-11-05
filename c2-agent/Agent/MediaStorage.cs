@@ -401,6 +401,75 @@ public class MediaStorage
             return "";
         }
     }
+
+    /// <summary>
+    /// Lista segmentos de vídeo agrupados por sessão de gravação (baseado em padrão de timestamp)
+    /// Útil para segmentação automática onde múltiplos arquivos pertencem à mesma gravação
+    /// </summary>
+    /// <param name="dateFolder">Pasta específica de data (ex: "2025-11-05"), ou null para todas</param>
+    /// <returns>Dictionary com chave sendo prefixo da sessão e valor lista de segmentos</returns>
+    public Dictionary<string, List<MediaFileInfo>> ListVideoSegmentsBySession(string? dateFolder = null)
+    {
+        try
+        {
+            var searchPath = dateFolder != null
+                ? Path.Combine(VideoPath, dateFolder)
+                : VideoPath;
+
+            if (!Directory.Exists(searchPath))
+            {
+                return new Dictionary<string, List<MediaFileInfo>>();
+            }
+
+            // Listar todos os arquivos
+            var allFiles = Directory.GetFiles(searchPath, "*.mp4", SearchOption.AllDirectories)
+                .Select(filePath => CreateMediaFileInfo(filePath))
+                .Where(info => info != null)
+                .Cast<MediaFileInfo>()
+                .ToList();
+
+            // Agrupar por prefixo (ex: "screen_20251105_1430" para segmentos "_143000", "_143030", etc)
+            var sessions = new Dictionary<string, List<MediaFileInfo>>();
+
+            foreach (var file in allFiles)
+            {
+                // Extrair prefixo base do nome do arquivo
+                // Ex: "screen_20251105_143022.mp4" → "screen_20251105_1430"
+                var fileName = Path.GetFileNameWithoutExtension(file.FileName);
+
+                string sessionKey;
+                if (fileName.StartsWith("screen_") && fileName.Length >= 20)
+                {
+                    // Usar primeiros 20 caracteres como chave da sessão (até os minutos)
+                    sessionKey = fileName.Substring(0, 20); // "screen_20251105_1430"
+                }
+                else
+                {
+                    sessionKey = fileName; // Fallback: usar nome completo
+                }
+
+                if (!sessions.ContainsKey(sessionKey))
+                {
+                    sessions[sessionKey] = new List<MediaFileInfo>();
+                }
+
+                sessions[sessionKey].Add(file);
+            }
+
+            // Ordenar segmentos dentro de cada sessão
+            foreach (var session in sessions.Values)
+            {
+                session.Sort((a, b) => a.CreatedAt.CompareTo(b.CreatedAt));
+            }
+
+            return sessions;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[MediaStorage] Erro ao listar segmentos por sessão: {ex.Message}");
+            return new Dictionary<string, List<MediaFileInfo>>();
+        }
+    }
 }
 
 /// <summary>

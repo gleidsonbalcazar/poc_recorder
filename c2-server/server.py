@@ -75,6 +75,17 @@ class StorageStats(BaseModel):
     video_size_mb: float
     base_path: str
 
+class SessionInfo(BaseModel):
+    session_key: str
+    segment_count: int
+    total_size_bytes: int
+    total_size_mb: float
+    start_time: str
+    end_time: str
+    duration_minutes: float
+    date_folder: str
+    segments: Optional[list[MediaFile]] = None
+
 class ResultRequest(BaseModel):
     task_id: str
     agent_id: str
@@ -85,6 +96,7 @@ class ResultRequest(BaseModel):
     media_file: Optional[MediaFile] = None
     media_files: Optional[list[MediaFile]] = None
     storage_stats: Optional[StorageStats] = None
+    sessions: Optional[list[SessionInfo]] = None
 
 class ResultResponse(BaseModel):
     task_id: str
@@ -98,6 +110,7 @@ class ResultResponse(BaseModel):
     media_file: Optional[MediaFile] = None
     media_files: Optional[list[MediaFile]] = None
     storage_stats: Optional[StorageStats] = None
+    sessions: Optional[list[SessionInfo]] = None
 
 # ============================================================================
 # Background Tasks
@@ -427,6 +440,82 @@ async def get_media_preview_url(agent_id: str, filename: str):
         "url": preview_url,
         "note": "Agent must be running on localhost or URL must be adjusted for remote access"
     }
+
+@app.get("/media/{agent_id}/sessions")
+async def get_agent_sessions(agent_id: str):
+    """
+    Get recording sessions for a specific agent
+    Returns list of sessions with grouped segments
+    """
+    if agent_id not in agents:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    
+    # Send command to agent to list sessions
+    task_id = str(uuid.uuid4())
+    command_data = {
+        "task_id": task_id,
+        "command": "media:list-sessions",
+        "type": "media:list-sessions"
+    }
+    
+    if agent_id not in command_queues:
+        command_queues[agent_id] = Queue()
+    
+    command_queues[agent_id].put(command_data)
+    
+    # Wait for result (with timeout)
+    max_wait = 10  # seconds
+    waited = 0
+    while waited < max_wait:
+        if task_id in results:
+            result = results[task_id]
+            return {
+                "agent_id": agent_id,
+                "sessions": result.get("sessions", []),
+                "count": len(result.get("sessions", []))
+            }
+        await asyncio.sleep(0.5)
+        waited += 0.5
+    
+    raise HTTPException(status_code=504, detail="Agent did not respond in time")
+
+@app.get("/media/{agent_id}/session/{session_key}")
+async def get_session_details(agent_id: str, session_key: str):
+    """
+    Get details of a specific recording session
+    Returns session info with all segments
+    """
+    if agent_id not in agents:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    
+    # Send command to agent
+    task_id = str(uuid.uuid4())
+    command_data = {
+        "task_id": task_id,
+        "command": f"media:session-details",
+        "type": "media:session-details",
+        "session_key": session_key
+    }
+    
+    if agent_id not in command_queues:
+        command_queues[agent_id] = Queue()
+    
+    command_queues[agent_id].put(command_data)
+    
+    # Wait for result
+    max_wait = 10
+    waited = 0
+    while waited < max_wait:
+        if task_id in results:
+            result = results[task_id]
+            sessions = result.get("sessions", [])
+            if sessions:
+                return sessions[0]  # Return the single session
+            raise HTTPException(status_code=404, detail="Session not found")
+        await asyncio.sleep(0.5)
+        waited += 0.5
+    
+    raise HTTPException(status_code=504, detail="Agent did not respond in time")
 
 @app.delete("/agent/{agent_id}")
 async def remove_agent(agent_id: str):

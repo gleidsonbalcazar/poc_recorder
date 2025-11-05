@@ -1,0 +1,79 @@
+========================================
+C2 Agent - Installation Information
+========================================
+
+WHAT IS THIS?
+-------------
+C2 Agent is a Proof of Concept (POC) Command & Control agent that allows
+remote management of Windows systems through a web dashboard.
+
+⚠️  IMPORTANT: This is educational software for testing purposes only!
+
+
+FEATURES
+--------
+✓ Remote command execution
+✓ Screen recording with audio (video/audio capture)
+✓ Real-time connection via Server-Sent Events (SSE)
+✓ Automatic FFmpeg download on first run
+✓ Local HTTP server for media preview (port 9000)
+
+
+SYSTEM REQUIREMENTS
+-------------------
+• Windows 10/11 (64-bit)
+• Internet connection for initial FFmpeg download (~30MB)
+• .NET 10 Runtime (included in installer - self-contained)
+
+
+WHAT WILL BE INSTALLED?
+------------------------
+• Agent.exe - Main executable (~70-100 MB)
+• Configuration files in: %LocalAppData%\C2Agent\
+• Optional: Startup registry entry (if selected)
+
+
+SECURITY NOTICE
+---------------
+⚠️  This POC does NOT include:
+   • Authentication
+   • Encryption (HTTPS)
+   • Authorization
+   • Rate limiting
+   • Secure credential storage
+
+DO NOT use in production environments!
+ONLY use on systems you own or have explicit permission to test.
+
+
+USAGE
+-----
+After installation, the agent will connect to the C2 server URL you specify.
+You can configure the server URL during installation.
+
+Default: http://localhost:8000
+
+
+UNINSTALLATION
+--------------
+You can uninstall via:
+• Windows Settings → Apps → C2 Agent → Uninstall
+• Or run the uninstaller from the Start Menu
+
+
+SUPPORT & DOCUMENTATION
+------------------------
+Project URL: https://github.com/gleidsonbalcazar/poc_recorder
+Full documentation available in the README.md
+
+
+BY PROCEEDING WITH THIS INSTALLATION, YOU ACKNOWLEDGE THAT:
+• This is educational/POC software
+• You will use it responsibly and ethically
+• You have permission to install and run this on the target system
+• The authors are not responsible for misuse
+
+
+========================================
+Press Next to continue installation
+========================================

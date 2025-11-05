@@ -383,6 +383,83 @@ public static class FFmpegHelper
     }
 
     /// <summary>
+    /// Constrói argumentos FFmpeg usando Named Pipe para áudio com segmentação automática
+    /// </summary>
+    /// <param name="outputPattern">Pattern para arquivos de saída com strftime (ex: video_%Y%m%d_%H%M%S.mp4)</param>
+    /// <param name="pipePath">Caminho do Named Pipe (ex: \\.\pipe\C2Agent_Audio)</param>
+    /// <param name="framerate">Taxa de quadros</param>
+    /// <param name="segmentSeconds">Duração de cada segmento em segundos (0 = sem segmentação)</param>
+    /// <param name="preset">Preset H.264</param>
+    /// <param name="videoBitrate">Bitrate do vídeo em kbps</param>
+    /// <returns>String com argumentos do FFmpeg</returns>
+    public static string BuildRecordingArgumentsWithPipe(
+        string outputPattern,
+        string pipePath,
+        int framerate = 30,
+        int segmentSeconds = 30,
+        string preset = "ultrafast",
+        int videoBitrate = 2000)
+    {
+        Console.WriteLine("[SYNC] ===== CONFIGURAÇÃO FFmpeg =====");
+        Console.WriteLine("[SYNC] INPUT 0: VIDEO (gdigrab desktop) ← MASTER CLOCK");
+        Console.WriteLine("[SYNC] INPUT 1: AUDIO (Named Pipe) ← SINCRONIZADO COM VÍDEO");
+        Console.WriteLine("[SYNC] thread_queue_size: 4096 (evita audio drops)");
+        Console.WriteLine("[SYNC] =====================================");
+
+        var args = new List<string>();
+
+        // Captura de tela (gdigrab) - INPUT 0 (master clock)
+        args.Add("-f gdigrab");
+        args.Add($"-framerate {framerate}");
+        args.Add("-i desktop");
+
+        // Input de áudio via Named Pipe (PCM s16le 48kHz stereo) - INPUT 1
+        args.Add("-f s16le");
+        args.Add("-ar 48000");
+        args.Add("-ac 2");
+        args.Add("-thread_queue_size 4096");
+        args.Add($"-i \"{pipePath}\"");
+
+        // GOP optimization (force keyframe every segment for clean cuts)
+        int gopSize = Math.Max(framerate * 2, 30);
+        args.Add($"-g {gopSize}");
+
+        if (segmentSeconds > 0)
+        {
+            // Segmentação automática
+            args.Add("-f segment");
+            args.Add($"-segment_time {segmentSeconds}");
+            args.Add("-reset_timestamps 1");
+            args.Add("-strftime 1");
+
+            // Force keyframes at segment boundaries
+            args.Add($"-force_key_frames \"expr:gte(t,n_forced*{segmentSeconds})\"");
+        }
+
+        // Map streams
+        args.Add("-map 0:v"); // Video from gdigrab (input 0)
+        args.Add("-map 1:a"); // Audio from pipe (input 1)
+
+        // Video codec e qualidade
+        args.Add("-c:v libx264");
+        args.Add($"-preset {preset}");
+        args.Add($"-b:v {videoBitrate}k");
+        args.Add("-pix_fmt yuv420p");
+
+        // Audio codec (comprime PCM para AAC)
+        args.Add("-c:a aac");
+        args.Add("-b:a 128k");
+
+        // Sobrescrever arquivo se existir
+        args.Add("-y");
+
+        // Arquivo de saída (ou pattern com strftime)
+        args.Add($"\"{outputPattern}\"");
+
+        return string.Join(" ", args);
+    }
+
+    /// <summary>
     /// Limpa cache de dispositivos (forçar nova detecção)
     /// </summary>
     public static void ClearDeviceCache()

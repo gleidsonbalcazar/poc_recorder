@@ -72,3 +72,6 @@ Agent/ffmpeg/
 
 # Backup files from migration
 *.old
+
+# Release builds and installers (generated files)
+releases/

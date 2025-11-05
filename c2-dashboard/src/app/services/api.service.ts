@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import { Agent } from '../models/agent.model';
 import { CommandRequest, CommandResponse } from '../models/command.model';
 import { Result, ResultsResponse } from '../models/result.model';
-import { MediaResponse, MediaCommand } from '../models/media.model';
+import { MediaResponse, MediaCommand, SessionsResponse, RecordingSession } from '../models/media.model';
 import { environment } from '../../environments/environment';
 
 @Injectable({
@@ -132,5 +132,21 @@ export class ApiService {
     return this.http.get<{ url: string, filename: string, agent_id: string }>(
       `${this.apiUrl}/media/preview/${agentId}/${encodeURIComponent(filename)}`
     );
+  }
+
+  // ===== SESSION METHODS =====
+
+  /**
+   * Get recording sessions for a specific agent
+   */
+  getAgentSessions(agentId: string): Observable<SessionsResponse> {
+    return this.http.get<SessionsResponse>(`${this.apiUrl}/media/${agentId}/sessions`);
+  }
+
+  /**
+   * Get details of a specific recording session
+   */
+  getSessionDetails(agentId: string, sessionKey: string): Observable<RecordingSession> {
+    return this.http.get<RecordingSession>(`${this.apiUrl}/media/${agentId}/session/${sessionKey}`);
   }
 }

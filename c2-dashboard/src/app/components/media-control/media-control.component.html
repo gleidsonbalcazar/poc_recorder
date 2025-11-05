@@ -27,14 +27,14 @@
         <button
           class="btn btn-success"
           (click)="startVideoRecording()"
-          [disabled]="!agentId || recordingStatus.videoRecording">
+          [disabled]="!agentId">
           ▶ Start Video
         </button>
 
         <button
           class="btn btn-danger"
           (click)="stopVideoRecording()"
-          [disabled]="!agentId || !recordingStatus.videoRecording">
+          [disabled]="!agentId">
           ⏹ Stop Video
         </button>
       </div>

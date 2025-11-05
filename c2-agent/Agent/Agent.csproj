@@ -7,6 +7,25 @@
     <Nullable>enable</Nullable>
     <PlatformTarget>x64</PlatformTarget>
     <Platforms>x64</Platforms>
+
+    <!-- Version Information -->
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <Version>1.0.0</Version>
+
+    <!-- Product Metadata -->
+    <Product>C2 Agent</Product>
+    <Description>C2 Command and Control Agent - POC</Description>
+    <Company>POC Project</Company>
+    <Copyright>Copyright © 2025</Copyright>
+    <Authors>POC Team</Authors>
+
+    <!-- Application Icon (optional, will be created) -->
+    <!-- <ApplicationIcon>icon.ico</ApplicationIcon> -->
+    <!-- TODO: Create icon.ico and uncomment above line -->
+
+    <!-- Prepare for future dual-mode (console/tray) -->
+    <DefineConstants>$(DefineConstants);CONSOLE_MODE</DefineConstants>
   </PropertyGroup>
 
   <!-- Force x64 platform when AnyCPU is used -->
@@ -21,5 +40,26 @@
     <PackageReference Include="NAudio.Lame" Version="2.1.0" />
     <PackageReference Include="System.Drawing.Common" Version="9.0.10" />
   </ItemGroup>
+
+  <!-- Release Build Optimizations -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <!-- Single-file deployment -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+
+    <!-- Size optimization -->
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>link</TrimMode>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+
+    <!-- Debug symbols removal -->
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+
+    <!-- Additional optimizations -->
+    <Optimize>true</Optimize>
+    <TieredCompilation>true</TieredCompilation>
+    <TieredCompilationQuickJit>true</TieredCompilationQuickJit>
+  </PropertyGroup>
 
 </Project>

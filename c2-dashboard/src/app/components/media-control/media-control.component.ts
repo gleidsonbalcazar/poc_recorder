@@ -48,13 +48,15 @@ export class MediaControlComponent {
         this.recordingStatus.videoRecording = true;
         this.addLog(`✅ Video recording started: Task ${response.task_id}`);
 
-        // Auto-stop after duration if specified
+        // Auto-stop after duration if specified (DISABLED - allows manual control)
+        /*
         if (this.videoDuration > 0) {
           setTimeout(() => {
             this.recordingStatus.videoRecording = false;
             this.addLog('🎥 Video recording completed');
           }, this.videoDuration * 1000);
         }
+        */
       },
       error: (error) => {
         this.addLog(`❌ Failed to start video recording: ${error.message}`);

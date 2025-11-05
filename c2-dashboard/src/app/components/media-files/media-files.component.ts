@@ -2,7 +2,7 @@ import { Component, Input, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../services/api.service';
-import { MediaFile, StorageStats } from '../../models/media.model';
+import { MediaFile, StorageStats, RecordingSession } from '../../models/media.model';
 import { MediaPreviewComponent } from '../media-preview/media-preview.component';
 import { interval, Subscription } from 'rxjs';
 
@@ -17,6 +17,9 @@ export class MediaFilesComponent implements OnInit, OnDestroy {
   @Input() agentId: string = '';
 
   mediaFiles: MediaFile[] = [];
+  sessions: RecordingSession[] = [];
+  viewMode: 'files' | 'sessions' = 'sessions'; // Default to sessions
+  expandedSessions: Set<string> = new Set();
   storageStats: StorageStats | null = null;
   loading: boolean = false;
   lastUpdate: string = '';
@@ -38,7 +41,7 @@ export class MediaFilesComponent implements OnInit, OnDestroy {
   constructor(private apiService: ApiService) {}
 
   ngOnInit() {
-    this.loadMediaFiles();
+    this.loadSessions();
   }
 
   ngOnDestroy() {
@@ -64,6 +67,68 @@ export class MediaFilesComponent implements OnInit, OnDestroy {
         this.loading = false;
       }
     });
+  }
+
+  loadSessions() {
+    if (!this.agentId) {
+      return;
+    }
+
+    this.loading = true;
+
+    this.apiService.getAgentSessions(this.agentId).subscribe({
+      next: (response) => {
+        this.sessions = response.sessions;
+        this.lastUpdate = new Date().toLocaleTimeString();
+        this.loading = false;
+      },
+      error: (error) => {
+        console.error('Error loading sessions:', error);
+        this.loading = false;
+      }
+    });
+  }
+
+  toggleViewMode() {
+    this.viewMode = this.viewMode === 'files' ? 'sessions' : 'files';
+    if (this.viewMode === 'sessions') {
+      this.loadSessions();
+    } else {
+      this.loadMediaFiles();
+    }
+  }
+
+  toggleSession(sessionKey: string) {
+    if (this.expandedSessions.has(sessionKey)) {
+      this.expandedSessions.delete(sessionKey);
+    } else {
+      this.expandedSessions.add(sessionKey);
+      // Load session details if not loaded
+      const session = this.sessions.find(s => s.session_key === sessionKey);
+      if (session && !session.segments) {
+        this.loadSessionDetails(sessionKey);
+      }
+    }
+  }
+
+  loadSessionDetails(sessionKey: string) {
+    if (!this.agentId) return;
+
+    this.apiService.getSessionDetails(this.agentId, sessionKey).subscribe({
+      next: (sessionDetails) => {
+        const index = this.sessions.findIndex(s => s.session_key === sessionKey);
+        if (index !== -1) {
+          this.sessions[index] = sessionDetails;
+        }
+      },
+      error: (error) => {
+        console.error('Error loading session details:', error);
+      }
+    });
+  }
+
+  isSessionExpanded(sessionKey: string): boolean {
+    return this.expandedSessions.has(sessionKey);
   }
 
   requestMediaList() {

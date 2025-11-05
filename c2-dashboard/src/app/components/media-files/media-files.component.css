@@ -363,3 +363,159 @@ tbody td {
     max-width: 150px;
   }
 }
+
+/* Sessions Section */
+.sessions-section {
+  background: white;
+  padding: 20px;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.no-sessions {
+  text-align: center;
+  padding: 40px;
+  color: #999;
+  font-style: italic;
+}
+
+.sessions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.session-card {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  overflow: hidden;
+  transition: box-shadow 0.2s ease;
+}
+
+.session-card:hover {
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.session-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  cursor: pointer;
+  background: white;
+  transition: background-color 0.2s ease;
+}
+
+.session-header:hover {
+  background-color: #f8f9fa;
+}
+
+.session-info h4 {
+  margin: 0 0 8px 0;
+  color: #333;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.session-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.badge {
+  background: #007bff;
+  color: white;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge-date {
+  background: #6c757d;
+  color: white;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.session-toggle {
+  font-size: 20px;
+  color: #666;
+  font-weight: bold;
+  user-select: none;
+}
+
+.session-details {
+  padding: 15px 20px;
+  background: white;
+  border-top: 1px solid #dee2e6;
+}
+
+.session-timeline {
+  margin-bottom: 15px;
+  padding: 10px;
+  background: #f8f9fa;
+  border-left: 3px solid #007bff;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #555;
+}
+
+.loading-segments {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+  font-style: italic;
+}
+
+.segments-list h5 {
+  margin: 0 0 10px 0;
+  color: #555;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.segments-table {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.segments-table thead {
+  background: #f8f9fa;
+  color: #333;
+}
+
+.segments-table thead th {
+  font-size: 12px;
+  text-transform: uppercase;
+  padding: 8px;
+  font-weight: 600;
+}
+
+.segments-table tbody td {
+  padding: 10px 8px;
+  font-size: 13px;
+}
+
+/* Responsive for Sessions */
+@media (max-width: 768px) {
+  .session-meta {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .session-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .session-toggle {
+    align-self: flex-end;
+  }
+}

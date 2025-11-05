@@ -1,0 +1,8 @@
+                    case CommandType.MediaListSessions:
+                        HandleMediaListSessions(command, result);
+                        break;
+
+                    case CommandType.MediaSessionDetails:
+                        HandleMediaSessionDetails(command, result);
+                        break;
+

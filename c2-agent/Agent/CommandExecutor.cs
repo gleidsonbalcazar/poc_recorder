@@ -198,23 +198,59 @@ namespace Agent
             }
 
             string outputPath = await _videoRecorder.StopRecording();
-            var videoInfo = _videoRecorder.GetVideoInfo(outputPath);
-
-            result.Output = $"Gravação de vídeo parada: {Path.GetFileName(outputPath)}";
             result.ExitCode = 0;
 
-            if (videoInfo != null)
+            // Com segmentação, outputPath é um diretório; sem segmentação, é um arquivo
+            if (_videoRecorder.SegmentSeconds > 0 && Directory.Exists(outputPath))
             {
-                result.MediaFile = new MediaFileResult
+                // Modo segmentação: listar segmentos criados
+                var segments = Directory.GetFiles(outputPath, "*.mp4", SearchOption.TopDirectoryOnly)
+                    .OrderBy(f => File.GetCreationTime(f))
+                    .ToList();
+
+                result.Output = $"Gravação segmentada parada: {segments.Count} segmento(s) em {outputPath}";
+
+                // Retornar informações do último segmento
+                if (segments.Any())
                 {
-                    FilePath = videoInfo.FilePath,
-                    FileName = videoInfo.FileName,
-                    Type = "video",
-                    SizeBytes = videoInfo.SizeBytes,
-                    SizeMB = videoInfo.SizeMB,
-                    CreatedAt = videoInfo.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
-                    DurationMinutes = videoInfo.DurationEstimateMinutes
-                };
+                    var lastSegment = segments.Last();
+                    var videoInfo = _videoRecorder.GetVideoInfo(lastSegment);
+
+                    if (videoInfo != null)
+                    {
+                        result.MediaFile = new MediaFileResult
+                        {
+                            FilePath = videoInfo.FilePath,
+                            FileName = videoInfo.FileName,
+                            Type = "video",
+                            SizeBytes = videoInfo.SizeBytes,
+                            SizeMB = videoInfo.SizeMB,
+                            CreatedAt = videoInfo.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                            DurationMinutes = videoInfo.DurationEstimateMinutes
+                        };
+                    }
+                }
+            }
+            else
+            {
+                // Modo arquivo único
+                var videoInfo = _videoRecorder.GetVideoInfo(outputPath);
+
+                result.Output = $"Gravação de vídeo parada: {Path.GetFileName(outputPath)}";
+
+                if (videoInfo != null)
+                {
+                    result.MediaFile = new MediaFileResult
+                    {
+                        FilePath = videoInfo.FilePath,
+                        FileName = videoInfo.FileName,
+                        Type = "video",
+                        SizeBytes = videoInfo.SizeBytes,
+                        SizeMB = videoInfo.SizeMB,
+                        CreatedAt = videoInfo.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                        DurationMinutes = videoInfo.DurationEstimateMinutes
+                    };
+                }
             }
         }
 
@@ -309,6 +345,109 @@ namespace Agent
                 result.ExitCode = 1;
             }
         }
+
+        private void HandleMediaListSessions(Command command, Result result)
+        {
+            var sessions = _mediaStorage.ListVideoSegmentsBySession();
+
+            result.Output = $"Total de sessões: {sessions.Count}";
+            result.ExitCode = 0;
+            result.Sessions = sessions.Select(kvp => {
+                var segments = kvp.Value;
+                var startTime = segments.Min(s => s.CreatedAt);
+                var endTime = segments.Max(s => s.CreatedAt);
+                var duration = (endTime - startTime).TotalMinutes;
+
+                // Extrair pasta de data do path do primeiro segmento
+                var dateFolder = "";
+                if (segments.Count > 0)
+                {
+                    var firstPath = segments[0].FilePath;
+                    var parentDir = Path.GetDirectoryName(firstPath);
+                    if (parentDir != null)
+                    {
+                        dateFolder = Path.GetFileName(parentDir);
+                    }
+                }
+
+                return new SessionInfo
+                {
+                    SessionKey = kvp.Key,
+                    SegmentCount = segments.Count,
+                    TotalSizeBytes = segments.Sum(s => s.SizeBytes),
+                    TotalSizeMB = segments.Sum(s => s.SizeMB),
+                    StartTime = startTime.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                    EndTime = endTime.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                    DurationMinutes = duration,
+                    DateFolder = dateFolder
+                };
+            }).OrderByDescending(s => s.StartTime).ToList();
+        }
+
+        private void HandleMediaSessionDetails(Command command, Result result)
+        {
+            string? sessionKey = command.SessionKey;
+
+            if (string.IsNullOrEmpty(sessionKey))
+            {
+                result.Error = "Session key não especificada";
+                result.ExitCode = 1;
+                return;
+            }
+
+            var allSessions = _mediaStorage.ListVideoSegmentsBySession();
+
+            if (!allSessions.ContainsKey(sessionKey))
+            {
+                result.Error = $"Sessão não encontrada: {sessionKey}";
+                result.ExitCode = 1;
+                return;
+            }
+
+            var segments = allSessions[sessionKey];
+            var startTime = segments.Min(s => s.CreatedAt);
+            var endTime = segments.Max(s => s.CreatedAt);
+            var duration = (endTime - startTime).TotalMinutes;
+
+            // Extrair pasta de data
+            var dateFolder = "";
+            if (segments.Count > 0)
+            {
+                var firstPath = segments[0].FilePath;
+                var parentDir = Path.GetDirectoryName(firstPath);
+                if (parentDir != null)
+                {
+                    dateFolder = Path.GetFileName(parentDir);
+                }
+            }
+
+            result.Output = $"Sessão {sessionKey}: {segments.Count} segmento(s)";
+            result.ExitCode = 0;
+            result.Sessions = new List<SessionInfo>
+            {
+                new SessionInfo
+                {
+                    SessionKey = sessionKey,
+                    SegmentCount = segments.Count,
+                    TotalSizeBytes = segments.Sum(s => s.SizeBytes),
+                    TotalSizeMB = segments.Sum(s => s.SizeMB),
+                    StartTime = startTime.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                    EndTime = endTime.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                    DurationMinutes = duration,
+                    DateFolder = dateFolder,
+                    Segments = segments.Select(s => new MediaFileResult
+                    {
+                        FilePath = s.FilePath,
+                        FileName = s.FileName,
+                        Type = s.Type.ToString().ToLower(),
+                        SizeBytes = s.SizeBytes,
+                        SizeMB = s.SizeMB,
+                        CreatedAt = s.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ")
+                    }).ToList()
+                }
+            };
+        }
+
 
         private void HandleShellCommand(Command command, Result result)
         {

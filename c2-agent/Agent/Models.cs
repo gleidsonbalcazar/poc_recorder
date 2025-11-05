@@ -14,7 +14,9 @@ namespace Agent.Models
         MediaList,          // Listar arquivos de mídia
         MediaClean,         // Limpar arquivos antigos
         MediaStats,         // Obter estatísticas de armazenamento
-        MediaDelete         // Deletar arquivo específico
+        MediaDelete,        // Deletar arquivo específico
+        MediaListSessions,  // Listar sessões de gravação
+        MediaSessionDetails // Obter detalhes de uma sessão específica
     }
 
     /// <summary>
@@ -49,6 +51,12 @@ namespace Agent.Models
         [JsonPropertyName("filename")]
         public string? Filename { get; set; }
 
+        [JsonPropertyName("segment_seconds")]
+        public int? SegmentSeconds { get; set; }
+
+        [JsonPropertyName("session_key")]
+        public string? SessionKey { get; set; }
+
         /// <summary>
         /// Parse command type from command text or type field
         /// </summary>
@@ -66,6 +74,8 @@ namespace Agent.Models
                     "media:clean" => CommandType.MediaClean,
                     "media:stats" => CommandType.MediaStats,
                     "media:delete" => CommandType.MediaDelete,
+                    "media:list-sessions" => CommandType.MediaListSessions,
+                    "media:session-details" => CommandType.MediaSessionDetails,
                     _ => CommandType.Shell
                 };
             }
@@ -88,6 +98,8 @@ namespace Agent.Models
 
         private CommandType ParseMediaCommand(string cmd)
         {
+            if (cmd.Contains("list-sessions")) return CommandType.MediaListSessions;
+            if (cmd.Contains("session-details")) return CommandType.MediaSessionDetails;
             if (cmd.Contains("list")) return CommandType.MediaList;
             if (cmd.Contains("clean")) return CommandType.MediaClean;
             if (cmd.Contains("stats")) return CommandType.MediaStats;
@@ -127,6 +139,9 @@ namespace Agent.Models
 
         [JsonPropertyName("storage_stats")]
         public StorageStatsResult? StorageStats { get; set; }
+
+        [JsonPropertyName("sessions")]
+        public List<SessionInfo>? Sessions { get; set; }
     }
 
     /// <summary>
@@ -175,6 +190,39 @@ namespace Agent.Models
 
         [JsonPropertyName("base_path")]
         public string BasePath { get; set; } = "";
+    }
+
+    /// <summary>
+    /// Recording session information (multiple segments grouped together)
+    /// </summary>
+    public class SessionInfo
+    {
+        [JsonPropertyName("session_key")]
+        public string SessionKey { get; set; } = "";
+
+        [JsonPropertyName("segment_count")]
+        public int SegmentCount { get; set; }
+
+        [JsonPropertyName("total_size_bytes")]
+        public long TotalSizeBytes { get; set; }
+
+        [JsonPropertyName("total_size_mb")]
+        public double TotalSizeMB { get; set; }
+
+        [JsonPropertyName("start_time")]
+        public string StartTime { get; set; } = "";
+
+        [JsonPropertyName("end_time")]
+        public string EndTime { get; set; } = "";
+
+        [JsonPropertyName("duration_minutes")]
+        public double DurationMinutes { get; set; }
+
+        [JsonPropertyName("date_folder")]
+        public string DateFolder { get; set; } = "";
+
+        [JsonPropertyName("segments")]
+        public List<MediaFileResult>? Segments { get; set; }
     }
 
     /// <summary>
