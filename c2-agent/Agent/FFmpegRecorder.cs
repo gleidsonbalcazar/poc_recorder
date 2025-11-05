@@ -40,14 +40,10 @@ public class FFmpegRecorder : IDisposable
             Directory.CreateDirectory(_storageBasePath);
         }
 
-        // Verificar se FFmpeg está disponível
-        if (!FFmpegHelper.IsFFmpegAvailable())
-        {
-            throw new FileNotFoundException(
-                "FFmpeg não encontrado. Coloque ffmpeg.exe na pasta: " +
-                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ffmpeg")
-            );
-        }
+        // Garantir que FFmpeg está disponível (baixar automaticamente se necessário)
+        Console.WriteLine("[FFmpegRecorder] Verificando FFmpeg...");
+        FFmpegHelper.EnsureFFmpegAvailable().Wait();
+        Console.WriteLine("[FFmpegRecorder] FFmpeg OK, pronto para gravar");
     }
 
     /// <summary>

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO.Compression;
 using System.Text.RegularExpressions;
 
 namespace Agent;
@@ -58,6 +59,130 @@ public static class FFmpegHelper
         catch
         {
             return false;
+        }
+    }
+
+    /// <summary>
+    /// Garante que FFmpeg está disponível, baixando automaticamente se necessário
+    /// </summary>
+    public static async Task EnsureFFmpegAvailable()
+    {
+        // Se já está disponível, não fazer nada
+        if (IsFFmpegAvailable())
+        {
+            return;
+        }
+
+        Console.WriteLine("[FFmpegHelper] FFmpeg não encontrado, iniciando download automático...");
+
+        string targetDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ffmpeg");
+        string targetPath = Path.Combine(targetDir, "ffmpeg.exe");
+
+        // Criar diretório se não existir
+        Directory.CreateDirectory(targetDir);
+
+        // URL do FFmpeg essentials build
+        string downloadUrl = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip";
+
+        Console.WriteLine($"[FFmpegHelper] Baixando de: {downloadUrl}");
+
+        int retries = 3;
+        for (int attempt = 1; attempt <= retries; attempt++)
+        {
+            try
+            {
+                using var httpClient = new HttpClient();
+                httpClient.Timeout = TimeSpan.FromMinutes(5);
+
+                // Baixar arquivo
+                var response = await httpClient.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead);
+                response.EnsureSuccessStatusCode();
+
+                long? totalBytes = response.Content.Headers.ContentLength;
+                string tempZipPath = Path.Combine(Path.GetTempPath(), "ffmpeg-temp.zip");
+
+                using (var contentStream = await response.Content.ReadAsStreamAsync())
+                using (var fileStream = new FileStream(tempZipPath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true))
+                {
+                    var buffer = new byte[8192];
+                    long totalRead = 0;
+                    int bytesRead;
+                    int lastPercent = 0;
+
+                    while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                    {
+                        await fileStream.WriteAsync(buffer, 0, bytesRead);
+                        totalRead += bytesRead;
+
+                        if (totalBytes.HasValue)
+                        {
+                            int percent = (int)((totalRead * 100) / totalBytes.Value);
+                            if (percent >= lastPercent + 10)
+                            {
+                                Console.WriteLine($"[FFmpegHelper] Progresso: {percent}% ({totalRead / (1024 * 1024)}MB / {totalBytes.Value / (1024 * 1024)}MB)");
+                                lastPercent = percent;
+                            }
+                        }
+                    }
+                }
+
+                Console.WriteLine("[FFmpegHelper] Download concluído. Extraindo ffmpeg.exe...");
+
+                // Extrair apenas ffmpeg.exe do ZIP
+                using (var archive = System.IO.Compression.ZipFile.OpenRead(tempZipPath))
+                {
+                    var ffmpegEntry = archive.Entries.FirstOrDefault(e =>
+                        e.FullName.EndsWith("ffmpeg.exe", StringComparison.OrdinalIgnoreCase));
+
+                    if (ffmpegEntry == null)
+                    {
+                        throw new Exception("ffmpeg.exe não encontrado no arquivo ZIP");
+                    }
+
+                    ffmpegEntry.ExtractToFile(targetPath, overwrite: true);
+                }
+
+                // Limpar arquivo temporário
+                try
+                {
+                    File.Delete(tempZipPath);
+                }
+                catch { }
+
+                Console.WriteLine($"[FFmpegHelper] ✓ FFmpeg instalado em: {targetPath}");
+                Console.WriteLine("[FFmpegHelper] ✓ Pronto para uso!");
+
+                // Limpar cache para forçar nova detecção
+                _ffmpegPath = null;
+
+                // Verificar se agora está disponível
+                if (IsFFmpegAvailable())
+                {
+                    return;
+                }
+                else
+                {
+                    throw new Exception("FFmpeg foi baixado mas não pode ser localizado");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[FFmpegHelper] Tentativa {attempt}/{retries} falhou: {ex.Message}");
+
+                if (attempt == retries)
+                {
+                    throw new Exception(
+                        $"Falha ao baixar FFmpeg após {retries} tentativas. " +
+                        "Verifique sua conexão com a internet ou baixe manualmente de: " +
+                        "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip " +
+                        $"e coloque ffmpeg.exe em: {targetDir}",
+                        ex
+                    );
+                }
+
+                // Aguardar antes de tentar novamente
+                await Task.Delay(2000);
+            }
         }
     }
 
