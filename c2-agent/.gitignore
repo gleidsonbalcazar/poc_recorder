@@ -66,3 +66,9 @@ Desktop.ini
 
 # Mac
 .DS_Store
+
+# FFmpeg binary (too large for Git)
+Agent/ffmpeg/
+
+# Backup files from migration
+*.old

@@ -1,36 +1,36 @@
-using ScreenRecorderLib;
 using System.Diagnostics;
 
 namespace Agent;
 
 /// <summary>
-/// Gerencia gravação de vídeo da tela usando ScreenRecorderLib
+/// Gerencia gravação de vídeo da tela usando FFmpeg
 /// </summary>
-public class VideoRecorder : IDisposable
+public class FFmpegRecorder : IDisposable
 {
-    private Recorder? _recorder;
+    private Process? _ffmpegProcess;
     private bool _isRecording;
     private string? _currentOutputPath;
     private readonly string _storageBasePath;
     private CancellationTokenSource? _periodicRecordingCts;
     private Task? _periodicRecordingTask;
+    private Task? _autoStopTask;
 
     // Configurações padrão
     public int FPS { get; set; } = 20;
     public int VideoBitrate { get; set; } = 2000; // kbps
-    public int AudioBitrate { get; set; } = 128; // kbps
-    public int VideoQuality { get; set; } = 28; // H.264 CRF (0-51, menor = melhor qualidade)
+    public int AudioBitrate { get; set; } = 128; // kbps (não usado diretamente)
+    public int VideoQuality { get; set; } = 28; // H.264 CRF (não usado no FFmpeg com preset)
     public bool CaptureAudio { get; set; } = true;
-    public double MicrophoneVolume { get; set; } = 0.5; // Volume do microfone (0.5 = 50% para evitar clipping)
-    public double SystemAudioVolume { get; set; } = 0.5; // Volume do áudio do sistema (0.5 = 50% para evitar clipping)
-    public int PeriodicIntervalMinutes { get; set; } = 5; // Intervalo padrão para gravação periódica
-    public int PeriodicDurationMinutes { get; set; } = 2; // Duração padrão de cada clip periódico
+    public double MicrophoneVolume { get; set; } = 0.5; // Não usado (FFmpeg não tem controle direto)
+    public double SystemAudioVolume { get; set; } = 0.5; // Não usado (FFmpeg não tem controle direto)
+    public int PeriodicIntervalMinutes { get; set; } = 5;
+    public int PeriodicDurationMinutes { get; set; } = 2;
 
     public bool IsRecording => _isRecording;
     public bool IsPeriodicRecordingActive => _periodicRecordingTask != null && !_periodicRecordingTask.IsCompleted;
     public string? CurrentRecordingPath => _isRecording ? _currentOutputPath : null;
 
-    public VideoRecorder(string storageBasePath)
+    public FFmpegRecorder(string storageBasePath)
     {
         _storageBasePath = storageBasePath;
 
@@ -38,6 +38,15 @@ public class VideoRecorder : IDisposable
         if (!Directory.Exists(_storageBasePath))
         {
             Directory.CreateDirectory(_storageBasePath);
+        }
+
+        // Verificar se FFmpeg está disponível
+        if (!FFmpegHelper.IsFFmpegAvailable())
+        {
+            throw new FileNotFoundException(
+                "FFmpeg não encontrado. Coloque ffmpeg.exe na pasta: " +
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ffmpeg")
+            );
         }
     }
 
@@ -68,68 +77,74 @@ public class VideoRecorder : IDisposable
 
         try
         {
-            // Configurar opções de gravação
-            var options = new RecorderOptions
+            // Detectar dispositivos de áudio
+            string? micDevice = null;
+            string? stereoMixDevice = null;
+
+            if (CaptureAudio)
             {
-                VideoEncoderOptions = new VideoEncoderOptions
+                micDevice = FFmpegHelper.DetectMicrophone();
+                stereoMixDevice = FFmpegHelper.DetectStereoMix();
+
+                if (micDevice == null && stereoMixDevice == null)
                 {
-                    Bitrate = VideoBitrate * 1000, // Converter para bps
-                    Framerate = FPS,
-                    IsFixedFramerate = false,
-                    Encoder = new H264VideoEncoder
-                    {
-                        BitrateMode = H264BitrateControlMode.UnconstrainedVBR
-                    }
-                },
-                AudioOptions = new AudioOptions
-                {
-                    IsAudioEnabled = CaptureAudio,
-                    IsOutputDeviceEnabled = CaptureAudio, // Áudio do sistema (som da tela/apps)
-                    IsInputDeviceEnabled = CaptureAudio, // Áudio do microfone
-                    OutputVolume = (float)SystemAudioVolume, // Volume do sistema (0.5 = 50%)
-                    InputVolume = (float)MicrophoneVolume, // Volume do microfone (0.5 = 50%)
-                    Bitrate = ScreenRecorderLib.AudioBitrate.bitrate_128kbps,
-                    Channels = ScreenRecorderLib.AudioChannels.Stereo
-                },
-                OutputOptions = new OutputOptions
-                {
-                    RecorderMode = RecorderMode.Video
-                },
-                LogOptions = new LogOptions
-                {
-                    IsLogEnabled = false // Desabilitar logs para evitar overhead
+                    Console.WriteLine("[FFmpegRecorder] ⚠️  Nenhum dispositivo de áudio detectado, gravando só vídeo");
                 }
-            };
+                else if (stereoMixDevice == null)
+                {
+                    Console.WriteLine("[FFmpegRecorder] ⚠️  Stereo Mix não detectado, gravando só microfone");
+                }
+            }
 
-            _recorder = Recorder.CreateRecorder(options);
+            // Construir argumentos de comando
+            string arguments = FFmpegHelper.BuildRecordingArguments(
+                _currentOutputPath,
+                FPS,
+                micDevice,
+                stereoMixDevice,
+                "ultrafast",
+                VideoBitrate
+            );
 
-            // Configurar callback de erro
-            _recorder.OnRecordingFailed += (sender, args) =>
+            // Se tem duração limitada, adicionar parâmetro -t
+            if (durationSeconds > 0)
             {
-                Console.WriteLine($"[VideoRecorder] Erro na gravação: {args.Error}");
-                _isRecording = false;
-            };
+                arguments = $"-t {durationSeconds} " + arguments;
+            }
 
-            // Configurar callback de conclusão
-            _recorder.OnRecordingComplete += (sender, args) =>
+            Console.WriteLine($"[FFmpegRecorder] Iniciando gravação: {_currentOutputPath}");
+            Console.WriteLine($"[FFmpegRecorder] Comando: ffmpeg {arguments}");
+
+            // Iniciar processo FFmpeg
+            var startInfo = new ProcessStartInfo
             {
-                Console.WriteLine($"[VideoRecorder] Gravação concluída: {args.FilePath}");
-                _isRecording = false;
+                FileName = FFmpegHelper.GetFFmpegPath(),
+                Arguments = arguments,
+                UseShellExecute = false,
+                RedirectStandardError = true,
+                RedirectStandardOutput = true,
+                CreateNoWindow = true
             };
 
-            // Iniciar gravação
-            _recorder.Record(_currentOutputPath);
+            _ffmpegProcess = Process.Start(startInfo);
+
+            if (_ffmpegProcess == null)
+            {
+                throw new Exception("Falha ao iniciar processo FFmpeg");
+            }
+
             _isRecording = true;
 
-            Console.WriteLine($"[VideoRecorder] Gravação iniciada: {_currentOutputPath}");
+            // Monitorar stderr do FFmpeg em background (para ver erros)
+            _ = Task.Run(() => MonitorFFmpegOutput(_ffmpegProcess));
 
             // Se duração foi especificada, agendar parada automática
             if (durationSeconds > 0)
             {
-                _ = Task.Run(async () =>
+                _autoStopTask = Task.Run(async () =>
                 {
-                    await Task.Delay(durationSeconds * 1000);
-                    if (_isRecording)
+                    await Task.Delay((durationSeconds + 2) * 1000); // +2s de margem
+                    if (_isRecording && _ffmpegProcess != null && !_ffmpegProcess.HasExited)
                     {
                         await StopRecording();
                     }
@@ -140,7 +155,7 @@ public class VideoRecorder : IDisposable
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[VideoRecorder] Erro ao iniciar gravação: {ex.Message}");
+            Console.WriteLine($"[FFmpegRecorder] Erro ao iniciar gravação: {ex.Message}");
             _isRecording = false;
             throw;
         }
@@ -149,34 +164,57 @@ public class VideoRecorder : IDisposable
     /// <summary>
     /// Para a gravação atual
     /// </summary>
-    /// <returns>Caminho do arquivo gravado</returns>
     public async Task<string> StopRecording()
     {
-        if (!_isRecording || _recorder == null)
+        if (!_isRecording || _ffmpegProcess == null)
         {
             throw new InvalidOperationException("Nenhuma gravação em andamento");
         }
 
         try
         {
-            _recorder.Stop();
+            Console.WriteLine("[FFmpegRecorder] Parando gravação...");
+
+            // Enviar 'q' para FFmpeg terminar gracefully
+            try
+            {
+                if (!_ffmpegProcess.HasExited)
+                {
+                    _ffmpegProcess.StandardInput.WriteLine("q");
+                    _ffmpegProcess.StandardInput.Flush();
+
+                    // Aguardar até 3 segundos para processo terminar
+                    bool exited = _ffmpegProcess.WaitForExit(3000);
+
+                    if (!exited)
+                    {
+                        Console.WriteLine("[FFmpegRecorder] FFmpeg não terminou gracefully, forçando kill");
+                        _ffmpegProcess.Kill();
+                    }
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                // Processo já terminou
+            }
+
             _isRecording = false;
 
             // Aguardar um pouco para garantir que o arquivo foi finalizado
-            await Task.Delay(500);
+            await Task.Delay(1000);
 
             string outputPath = _currentOutputPath ?? "unknown";
-            Console.WriteLine($"[VideoRecorder] Gravação parada: {outputPath}");
+            Console.WriteLine($"[FFmpegRecorder] Gravação parada: {outputPath}");
 
-            // Limpar recorder
-            _recorder.Dispose();
-            _recorder = null;
+            // Limpar processo
+            _ffmpegProcess?.Dispose();
+            _ffmpegProcess = null;
 
             return outputPath;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[VideoRecorder] Erro ao parar gravação: {ex.Message}");
+            Console.WriteLine($"[FFmpegRecorder] Erro ao parar gravação: {ex.Message}");
             _isRecording = false;
             throw;
         }
@@ -195,7 +233,7 @@ public class VideoRecorder : IDisposable
         _periodicRecordingCts = new CancellationTokenSource();
         _periodicRecordingTask = Task.Run(async () => await PeriodicRecordingLoop(_periodicRecordingCts.Token));
 
-        Console.WriteLine($"[VideoRecorder] Gravação periódica iniciada: {PeriodicDurationMinutes}min a cada {PeriodicIntervalMinutes}min");
+        Console.WriteLine($"[FFmpegRecorder] Gravação periódica iniciada: {PeriodicDurationMinutes}min a cada {PeriodicIntervalMinutes}min");
     }
 
     /// <summary>
@@ -226,7 +264,7 @@ public class VideoRecorder : IDisposable
         _periodicRecordingCts = null;
         _periodicRecordingTask = null;
 
-        Console.WriteLine("[VideoRecorder] Gravação periódica parada");
+        Console.WriteLine("[FFmpegRecorder] Gravação periódica parada");
     }
 
     /// <summary>
@@ -238,11 +276,17 @@ public class VideoRecorder : IDisposable
         {
             try
             {
-                // Iniciar gravação
+                // Iniciar gravação com duração limitada
                 await StartRecording(PeriodicDurationMinutes * 60);
 
-                // Aguardar duração da gravação
-                await Task.Delay(PeriodicDurationMinutes * 60 * 1000, ct);
+                // Aguardar duração da gravação + margem
+                await Task.Delay((PeriodicDurationMinutes * 60 + 5) * 1000, ct);
+
+                // Garantir que gravação foi parada
+                if (_isRecording)
+                {
+                    await StopRecording();
+                }
 
                 // Aguardar intervalo antes da próxima gravação
                 int remainingInterval = PeriodicIntervalMinutes - PeriodicDurationMinutes;
@@ -258,10 +302,38 @@ public class VideoRecorder : IDisposable
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[VideoRecorder] Erro na gravação periódica: {ex.Message}");
+                Console.WriteLine($"[FFmpegRecorder] Erro na gravação periódica: {ex.Message}");
                 // Aguardar um pouco antes de tentar novamente
                 await Task.Delay(5000, ct);
             }
+        }
+    }
+
+    /// <summary>
+    /// Monitora saída do FFmpeg para detectar erros
+    /// </summary>
+    private async Task MonitorFFmpegOutput(Process process)
+    {
+        try
+        {
+            while (!process.HasExited)
+            {
+                string? line = await process.StandardError.ReadLineAsync();
+                if (line != null && (line.Contains("error") || line.Contains("Error") || line.Contains("ERROR")))
+                {
+                    Console.WriteLine($"[FFmpegRecorder] FFmpeg error: {line}");
+                }
+            }
+
+            int exitCode = process.ExitCode;
+            if (exitCode != 0)
+            {
+                Console.WriteLine($"[FFmpegRecorder] FFmpeg terminou com código: {exitCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[FFmpegRecorder] Erro ao monitorar FFmpeg: {ex.Message}");
         }
     }
 
@@ -291,7 +363,7 @@ public class VideoRecorder : IDisposable
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[VideoRecorder] Erro ao obter info do vídeo: {ex.Message}");
+            Console.WriteLine($"[FFmpegRecorder] Erro ao obter info do vídeo: {ex.Message}");
             return null;
         }
     }
@@ -311,16 +383,19 @@ public class VideoRecorder : IDisposable
 
     public void Dispose()
     {
-        if (_isRecording && _recorder != null)
+        if (_isRecording && _ffmpegProcess != null)
         {
             try
             {
-                _recorder.Stop();
+                if (!_ffmpegProcess.HasExited)
+                {
+                    _ffmpegProcess.Kill();
+                }
             }
             catch { }
         }
 
-        _recorder?.Dispose();
+        _ffmpegProcess?.Dispose();
         _periodicRecordingCts?.Cancel();
         _periodicRecordingCts?.Dispose();
     }

@@ -11,12 +11,12 @@ namespace Agent
     public class CommandExecutor : IDisposable
     {
         private readonly int _commandTimeoutMs;
-        private readonly VideoRecorder _videoRecorder;
+        private readonly FFmpegRecorder _videoRecorder;
         private readonly MediaStorage _mediaStorage;
         private readonly string _agentId;
 
         // Public properties to access recorders (for MediaHttpServer)
-        public VideoRecorder VideoRecorder => _videoRecorder;
+        public FFmpegRecorder VideoRecorder => _videoRecorder;
 
         public CommandExecutor(string agentId, string storageBasePath, int commandTimeoutMs = 60000)
         {
@@ -24,7 +24,7 @@ namespace Agent
             _agentId = agentId;
 
             // Inicializar componentes de mídia
-            _videoRecorder = new VideoRecorder(storageBasePath);
+            _videoRecorder = new FFmpegRecorder(storageBasePath);
             _mediaStorage = new MediaStorage(storageBasePath);
 
             Console.WriteLine($"[CommandExecutor] Inicializado com storage: {storageBasePath}");

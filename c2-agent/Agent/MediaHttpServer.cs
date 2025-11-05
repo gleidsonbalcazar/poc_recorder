@@ -14,7 +14,7 @@ public class MediaHttpServer : IDisposable
     private bool _isRunning;
     private Task? _serverTask;
     private CancellationTokenSource? _cts;
-    private readonly VideoRecorder? _videoRecorder;
+    private readonly FFmpegRecorder? _videoRecorder;
 
     // Allowed file extensions for security
     private readonly HashSet<string> _allowedExtensions = new()
@@ -32,7 +32,7 @@ public class MediaHttpServer : IDisposable
         _listener = new HttpListener();
     }
 
-    public MediaHttpServer(string mediaBasePath, int port, VideoRecorder? videoRecorder)
+    public MediaHttpServer(string mediaBasePath, int port, FFmpegRecorder? videoRecorder)
         : this(mediaBasePath, port)
     {
         _videoRecorder = videoRecorder;
