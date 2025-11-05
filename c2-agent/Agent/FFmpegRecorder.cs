@@ -119,6 +119,7 @@ public class FFmpegRecorder : IDisposable
                 UseShellExecute = false,
                 RedirectStandardError = true,
                 RedirectStandardOutput = true,
+                RedirectStandardInput = true,  // Necessário para enviar 'q' ao parar gravação
                 CreateNoWindow = true
             };
 
@@ -186,25 +187,55 @@ public class FFmpegRecorder : IDisposable
                     {
                         Console.WriteLine("[FFmpegRecorder] FFmpeg não terminou gracefully, forçando kill");
                         _ffmpegProcess.Kill();
+                        _ffmpegProcess.WaitForExit(); // Aguardar kill completar
                     }
                 }
             }
-            catch (InvalidOperationException)
+            catch (InvalidOperationException ex)
             {
-                // Processo já terminou
+                // Pode ocorrer se processo já terminou ou StandardInput não disponível
+                Console.WriteLine($"[FFmpegRecorder] Aviso ao enviar 'q': {ex.Message}");
+
+                // Tentar kill como fallback
+                try
+                {
+                    if (_ffmpegProcess != null && !_ffmpegProcess.HasExited)
+                    {
+                        Console.WriteLine("[FFmpegRecorder] Forçando kill como fallback...");
+                        _ffmpegProcess.Kill();
+                        _ffmpegProcess.WaitForExit();
+                    }
+                }
+                catch (Exception killEx)
+                {
+                    Console.WriteLine($"[FFmpegRecorder] Erro ao tentar kill: {killEx.Message}");
+                }
             }
 
             _isRecording = false;
 
             // Aguardar um pouco para garantir que o arquivo foi finalizado
-            await Task.Delay(1000);
+            Console.WriteLine("[FFmpegRecorder] Aguardando finalização do arquivo...");
+            await Task.Delay(2000);
 
             string outputPath = _currentOutputPath ?? "unknown";
-            Console.WriteLine($"[FFmpegRecorder] Gravação parada: {outputPath}");
 
             // Limpar processo
             _ffmpegProcess?.Dispose();
             _ffmpegProcess = null;
+
+            // Verificar se arquivo está acessível
+            Console.WriteLine("[FFmpegRecorder] Verificando acesso ao arquivo...");
+            bool fileAccessible = await WaitForFileAccess(outputPath, maxRetries: 10, delayMs: 500);
+
+            if (fileAccessible)
+            {
+                Console.WriteLine($"[FFmpegRecorder] ✓ Gravação parada: {outputPath}");
+            }
+            else
+            {
+                Console.WriteLine($"[FFmpegRecorder] ⚠️  Gravação parada mas arquivo pode estar travado: {outputPath}");
+            }
 
             return outputPath;
         }
@@ -375,6 +406,48 @@ public class FFmpegRecorder : IDisposable
         double fileSizeMB = fileSizeBytes / (1024.0 * 1024.0);
 
         return Math.Round(fileSizeMB / totalBitrateMBPerMin, 2);
+    }
+
+    /// <summary>
+    /// Aguarda até que o arquivo esteja acessível para leitura
+    /// </summary>
+    /// <param name="filePath">Caminho do arquivo</param>
+    /// <param name="maxRetries">Número máximo de tentativas</param>
+    /// <param name="delayMs">Delay entre tentativas em milissegundos</param>
+    /// <returns>True se arquivo ficou acessível, False caso contrário</returns>
+    private async Task<bool> WaitForFileAccess(string filePath, int maxRetries = 10, int delayMs = 500)
+    {
+        for (int i = 0; i < maxRetries; i++)
+        {
+            try
+            {
+                // Tentar abrir o arquivo em modo read
+                using (var fs = File.OpenRead(filePath))
+                {
+                    // Se chegou aqui, arquivo está acessível
+                    Console.WriteLine($"[FFmpegRecorder] Arquivo acessível após {i + 1} tentativa(s)");
+                    return true;
+                }
+            }
+            catch (IOException)
+            {
+                // Arquivo ainda está travado
+                if (i < maxRetries - 1)
+                {
+                    Console.WriteLine($"[FFmpegRecorder] Arquivo ainda travado, tentativa {i + 1}/{maxRetries}...");
+                    await Task.Delay(delayMs);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Outro tipo de erro (arquivo não existe, permissões, etc)
+                Console.WriteLine($"[FFmpegRecorder] Erro ao verificar acesso ao arquivo: {ex.Message}");
+                return false;
+            }
+        }
+
+        Console.WriteLine($"[FFmpegRecorder] ⚠️  Arquivo ainda pode estar travado após {maxRetries} tentativas");
+        return false;
     }
 
     public void Dispose()
