@@ -11,6 +11,7 @@ public class MediaStorage
     private readonly string _basePath;
     private readonly string _metadataPath;
 
+    public string BasePath => _basePath;
     public string VideoPath => Path.Combine(_basePath, "videos");
 
     public MediaStorage(string basePath)

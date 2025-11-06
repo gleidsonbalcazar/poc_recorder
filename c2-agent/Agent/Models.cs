@@ -16,7 +16,8 @@ namespace Agent.Models
         MediaStats,         // Obter estatísticas de armazenamento
         MediaDelete,        // Deletar arquivo específico
         MediaListSessions,  // Listar sessões de gravação
-        MediaSessionDetails // Obter detalhes de uma sessão específica
+        MediaSessionDetails,// Obter detalhes de uma sessão específica
+        StatusQuery         // Obter status completo do agente
     }
 
     /// <summary>
@@ -76,6 +77,7 @@ namespace Agent.Models
                     "media:delete" => CommandType.MediaDelete,
                     "media:list-sessions" => CommandType.MediaListSessions,
                     "media:session-details" => CommandType.MediaSessionDetails,
+                    "status:query" => CommandType.StatusQuery,
                     _ => CommandType.Shell
                 };
             }
@@ -84,6 +86,7 @@ namespace Agent.Models
             string cmd = CommandText.ToLower().Trim();
             if (cmd.StartsWith("video:")) return ParseVideoCommand(cmd);
             if (cmd.StartsWith("media:")) return ParseMediaCommand(cmd);
+            if (cmd.StartsWith("status:")) return ParseStatusCommand(cmd);
 
             return CommandType.Shell;
         }
@@ -104,6 +107,12 @@ namespace Agent.Models
             if (cmd.Contains("clean")) return CommandType.MediaClean;
             if (cmd.Contains("stats")) return CommandType.MediaStats;
             if (cmd.Contains("delete")) return CommandType.MediaDelete;
+            return CommandType.Shell;
+        }
+
+        private CommandType ParseStatusCommand(string cmd)
+        {
+            if (cmd.Contains("query")) return CommandType.StatusQuery;
             return CommandType.Shell;
         }
     }
@@ -142,6 +151,9 @@ namespace Agent.Models
 
         [JsonPropertyName("sessions")]
         public List<SessionInfo>? Sessions { get; set; }
+
+        [JsonPropertyName("agent_status")]
+        public AgentStatusResult? AgentStatus { get; set; }
     }
 
     /// <summary>
@@ -235,5 +247,101 @@ namespace Agent.Models
         public string Hostname { get; set; } = Environment.MachineName;
         public int ReconnectDelayMs { get; set; } = 5000;
         public int MaxReconnectAttempts { get; set; } = -1; // -1 = infinite
+    }
+
+    /// <summary>
+    /// Complete agent status (for status:query command)
+    /// </summary>
+    public class AgentStatusResult
+    {
+        [JsonPropertyName("recording")]
+        public RecordingStatusResult Recording { get; set; } = new();
+
+        [JsonPropertyName("database")]
+        public DatabaseStatsResult Database { get; set; } = new();
+
+        [JsonPropertyName("upload")]
+        public UploadStatusResult Upload { get; set; } = new();
+
+        [JsonPropertyName("system")]
+        public SystemInfoResult System { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Current recording status
+    /// </summary>
+    public class RecordingStatusResult
+    {
+        [JsonPropertyName("is_recording")]
+        public bool IsRecording { get; set; }
+
+        [JsonPropertyName("session_key")]
+        public string? SessionKey { get; set; }
+
+        [JsonPropertyName("started_at")]
+        public string? StartedAt { get; set; }
+
+        [JsonPropertyName("duration_seconds")]
+        public long DurationSeconds { get; set; }
+
+        [JsonPropertyName("segment_count")]
+        public int SegmentCount { get; set; }
+
+        [JsonPropertyName("current_file")]
+        public string? CurrentFile { get; set; }
+
+        [JsonPropertyName("mode")]
+        public string Mode { get; set; } = ""; // continuous, scheduled, manual
+    }
+
+    /// <summary>
+    /// Database statistics
+    /// </summary>
+    public class DatabaseStatsResult
+    {
+        [JsonPropertyName("pending")]
+        public int Pending { get; set; }
+
+        [JsonPropertyName("uploading")]
+        public int Uploading { get; set; }
+
+        [JsonPropertyName("done")]
+        public int Done { get; set; }
+
+        [JsonPropertyName("error")]
+        public int Error { get; set; }
+
+        [JsonPropertyName("total_size_mb")]
+        public double TotalSizeMB { get; set; }
+    }
+
+    /// <summary>
+    /// Upload worker status
+    /// </summary>
+    public class UploadStatusResult
+    {
+        [JsonPropertyName("enabled")]
+        public bool Enabled { get; set; }
+
+        [JsonPropertyName("active_uploads")]
+        public int ActiveUploads { get; set; }
+
+        [JsonPropertyName("endpoint")]
+        public string? Endpoint { get; set; }
+    }
+
+    /// <summary>
+    /// System information
+    /// </summary>
+    public class SystemInfoResult
+    {
+        [JsonPropertyName("os_version")]
+        public string OsVersion { get; set; } = "";
+
+        [JsonPropertyName("storage_path")]
+        public string StoragePath { get; set; } = "";
+
+        [JsonPropertyName("disk_space_gb")]
+        public double DiskSpaceGB { get; set; }
     }
 }
