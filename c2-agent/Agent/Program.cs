@@ -103,7 +103,9 @@ namespace AgentApp
                     {
                         PollIntervalSeconds = appConfig.Upload.PollIntervalSeconds,
                         MaxConcurrentUploads = appConfig.Upload.MaxConcurrentUploads,
-                        MaxRetries = appConfig.Upload.MaxRetries
+                        MaxRetries = appConfig.Upload.MaxRetries,
+                        UploadEndpoint = appConfig.Upload.Endpoint,
+                        ApiKey = appConfig.Upload.ApiKey
                     };
                 }
 

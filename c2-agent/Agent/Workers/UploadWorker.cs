@@ -12,11 +12,14 @@ public class UploadWorker
     private readonly CancellationTokenSource _cts;
     private Task? _workerTask;
     private bool _isRunning;
+    private HttpUploadClient? _uploadClient;
 
     // Configurações
     public int PollIntervalSeconds { get; set; } = 30; // Verificar fila a cada 30 segundos
     public int MaxConcurrentUploads { get; set; } = 2; // Máximo de uploads simultâneos
     public int MaxRetries { get; set; } = 3; // Máximo de tentativas por vídeo
+    public string? UploadEndpoint { get; set; }
+    public string? ApiKey { get; set; }
 
     public UploadWorker(DatabaseManager database)
     {
@@ -33,6 +36,17 @@ public class UploadWorker
         {
             Console.WriteLine("[UploadWorker] Já está rodando");
             return;
+        }
+
+        // Inicializar cliente de upload se endpoint estiver configurado
+        if (!string.IsNullOrEmpty(UploadEndpoint))
+        {
+            _uploadClient = new HttpUploadClient(UploadEndpoint, ApiKey ?? "", _database);
+            Console.WriteLine($"[UploadWorker] Upload HTTP configurado: {UploadEndpoint}");
+        }
+        else
+        {
+            Console.WriteLine("[UploadWorker] AVISO: Endpoint de upload não configurado, uploads serão simulados");
         }
 
         _isRunning = true;
@@ -56,6 +70,7 @@ public class UploadWorker
             await _workerTask;
         }
 
+        _uploadClient?.Dispose();
         _isRunning = false;
         Console.WriteLine("[UploadWorker] Worker parado");
     }
@@ -123,9 +138,17 @@ public class UploadWorker
             // Criar task de upload
             long uploadTaskId = _database.CreateUploadTask(video.Id, video.FileSizeBytes);
 
-            // TODO: Implementar upload real aqui
-            // Por enquanto, simular upload com delay
-            bool uploadSuccess = await SimulateUpload(uploadTaskId, video, ct);
+            // Upload real se cliente estiver configurado, senão simular
+            bool uploadSuccess;
+            if (_uploadClient != null)
+            {
+                uploadSuccess = await _uploadClient.UploadVideoAsync(video, uploadTaskId, ct);
+            }
+            else
+            {
+                Console.WriteLine("[UploadWorker] AVISO: Simulando upload (endpoint não configurado)");
+                uploadSuccess = await SimulateUpload(uploadTaskId, video, ct);
+            }
 
             if (uploadSuccess)
             {
