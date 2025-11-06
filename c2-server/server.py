@@ -86,6 +86,38 @@ class SessionInfo(BaseModel):
     date_folder: str
     segments: Optional[list[MediaFile]] = None
 
+class RecordingStatus(BaseModel):
+    is_recording: bool
+    session_key: Optional[str] = None
+    started_at: Optional[str] = None
+    duration_seconds: int
+    segment_count: int
+    current_file: Optional[str] = None
+    mode: str
+
+class DatabaseStats(BaseModel):
+    pending: int
+    uploading: int
+    done: int
+    error: int
+    total_size_mb: float
+
+class UploadStatus(BaseModel):
+    enabled: bool
+    active_uploads: int
+    endpoint: Optional[str] = None
+
+class SystemInfo(BaseModel):
+    os_version: str
+    storage_path: str
+    disk_space_gb: float
+
+class AgentStatus(BaseModel):
+    recording: RecordingStatus
+    database: DatabaseStats
+    upload: UploadStatus
+    system: SystemInfo
+
 class ResultRequest(BaseModel):
     task_id: str
     agent_id: str
@@ -97,6 +129,7 @@ class ResultRequest(BaseModel):
     media_files: Optional[list[MediaFile]] = None
     storage_stats: Optional[StorageStats] = None
     sessions: Optional[list[SessionInfo]] = None
+    agent_status: Optional[AgentStatus] = None
 
 class ResultResponse(BaseModel):
     task_id: str
@@ -111,6 +144,7 @@ class ResultResponse(BaseModel):
     media_files: Optional[list[MediaFile]] = None
     storage_stats: Optional[StorageStats] = None
     sessions: Optional[list[SessionInfo]] = None
+    agent_status: Optional[AgentStatus] = None
 
 # ============================================================================
 # Background Tasks
@@ -327,6 +361,12 @@ async def receive_result(result_request: ResultRequest):
 
     if result_request.storage_stats:
         update_data["storage_stats"] = result_request.storage_stats.dict()
+
+    if result_request.sessions:
+        update_data["sessions"] = [s.dict() for s in result_request.sessions]
+
+    if result_request.agent_status:
+        update_data["agent_status"] = result_request.agent_status.dict()
 
     results[task_id].update(update_data)
 
