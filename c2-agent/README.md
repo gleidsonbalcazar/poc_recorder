@@ -1,23 +1,84 @@
-# C2 Agent - Windows Command & Control Agent
+# Paneas Monitor - C2 Agent + Autonomous Recording System
 
-Agente Windows que conecta ao servidor C2 via Server-Sent Events (SSE) e executa comandos remotamente.
+**Versão 2.0** - Sistema híbrido que combina Command & Control (C2) com operação autônoma de gravação e upload de vídeos.
+
+> 📖 **Documentação Completa:** Ver [PANEAS_MONITOR.md](PANEAS_MONITOR.md)
 
 ## 🚀 Tecnologias
 
-- C# / .NET 10
-- HttpClient para SSE
-- Process API para execução de comandos
+- **Backend:** C# / .NET 10
+- **Gravação:** FFmpeg + NAudio (WASAPI)
+- **Banco de Dados:** SQLite (Microsoft.Data.Sqlite)
+- **Upload:** HttpClient (Multipart/Form-Data)
+- **Comunicação C2:** Server-Sent Events (SSE)
+
+## 🎯 Modos de Operação
+
+| Modo | Descrição | Use Case |
+|------|-----------|----------|
+| **C2** | Controle remoto via servidor | Operação sob demanda |
+| **Autonomous** | Gravação e upload automáticos | Monitoramento contínuo |
+| **Hybrid** ⭐ | C2 + Autonomous | Máxima flexibilidade |
+
+Configure o modo em `appsettings.json`:
+```json
+{
+  "Mode": "hybrid"
+}
+```
 
 ## 📋 Características
 
+### Modo C2 (Original)
 ✅ Conexão via SSE (Server-Sent Events)
 ✅ Execução de comandos via cmd.exe
 ✅ Reconexão automática em caso de falha
 ✅ Envio de resultados ao servidor
 ✅ Logging detalhado
-✅ ID único por agente (hostname + GUID)
-✅ Tratamento de timeouts
 ✅ Shutdown gracioso (Ctrl+C)
+
+### Modo Autônomo (Novo) 🆕
+✅ **Gravação automática** de tela + áudio
+✅ **Segmentação** em arquivos de 30 segundos
+✅ **Organização** por data e sessão
+✅ **Fila persistente** SQLite (sobrevive a crashes)
+✅ **Upload automático** com retry
+✅ **Process snapshots** (contexto forense)
+✅ **Background workers** independentes
+✅ **HTTP preview** server (localhost:9000)
+✅ **Progress tracking** em tempo real
+
+## ⚡ Quick Start
+
+**1. Configurar `appsettings.json`:**
+```json
+{
+  "Mode": "autonomous",
+  "Recording": {
+    "Continuous": false,
+    "DurationMinutes": 30,
+    "SegmentSeconds": 30
+  },
+  "Upload": {
+    "Enabled": true,
+    "Endpoint": "https://seu-servidor.com/upload",
+    "ApiKey": "sua-chave-aqui"
+  }
+}
+```
+
+**2. Build e executar:**
+```bash
+cd Agent
+dotnet build
+dotnet run
+```
+
+**3. Verificar:**
+- ✅ Workers iniciados
+- ✅ Gravação automática começou
+- ✅ Vídeos em `C:\Users\<User>\AppData\Local\C2Agent\videos\`
+- ✅ Preview em `http://localhost:9000`
 
 ## ⚙️ Compilação
 
