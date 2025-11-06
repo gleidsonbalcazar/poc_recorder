@@ -1,3 +1,5 @@
+import { AgentStatus } from './status.model';
+
 export interface Result {
   task_id: string;
   agent_id: string;
@@ -7,6 +9,7 @@ export interface Result {
   exit_code: number;
   timestamp: string;
   status: 'queued' | 'completed' | 'failed';
+  agent_status?: AgentStatus | null;
 }
 
 export interface ResultsResponse {

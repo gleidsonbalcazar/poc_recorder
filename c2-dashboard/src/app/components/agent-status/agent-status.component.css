@@ -1,0 +1,260 @@
+.agent-status-container {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.status-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.status-header h3 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #333;
+}
+
+.last-update {
+  font-size: 0.85rem;
+  color: #666;
+  background: #f5f5f5;
+  padding: 4px 12px;
+  border-radius: 12px;
+}
+
+.status-section {
+  background: #f9f9f9;
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 15px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.section-header h4 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #444;
+}
+
+.section-content {
+  background: white;
+  padding: 12px;
+  border-radius: 4px;
+}
+
+.status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.status-row:last-child {
+  border-bottom: none;
+}
+
+.label {
+  font-weight: 500;
+  color: #666;
+  flex: 0 0 40%;
+}
+
+.value {
+  color: #333;
+  font-family: 'Courier New', monospace;
+  flex: 0 0 60%;
+  text-align: right;
+}
+
+.duration-highlight {
+  color: #1976d2;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.mode-badge {
+  background: #e3f2fd;
+  color: #1976d2;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.info-text {
+  color: #999;
+  font-style: italic;
+}
+
+.path {
+  font-size: 0.85rem;
+  word-break: break-all;
+}
+
+.endpoint {
+  font-size: 0.85rem;
+  color: #1976d2;
+  word-break: break-all;
+}
+
+.disk-space {
+  color: #4caf50;
+  font-weight: 600;
+}
+
+/* Status Badges */
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.status-recording {
+  background: #ffebee;
+  color: #c62828;
+  animation: pulse 2s infinite;
+}
+
+.status-stopped {
+  background: #f5f5f5;
+  color: #757575;
+}
+
+.status-enabled {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.status-disabled {
+  background: #fafafa;
+  color: #9e9e9e;
+}
+
+.status-unknown {
+  background: #fff3e0;
+  color: #ef6c00;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Stats Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.stat-item {
+  text-align: center;
+  padding: 12px;
+  background: #fafafa;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+}
+
+.stat-label {
+  display: block;
+  font-size: 0.75rem;
+  color: #666;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.stat-value.pending {
+  color: #ff9800;
+}
+
+.stat-value.uploading {
+  color: #2196f3;
+}
+
+.stat-value.done {
+  color: #4caf50;
+}
+
+.stat-value.error {
+  color: #f44336;
+}
+
+/* Loading & Error States */
+.status-loading,
+.status-error,
+.status-placeholder {
+  text-align: center;
+  padding: 40px 20px;
+  color: #999;
+  font-style: italic;
+}
+
+.status-error {
+  color: #f44336;
+}
+
+/* Recording Section Specific */
+.recording-section {
+  border-left: 4px solid #f44336;
+}
+
+/* Database Section Specific */
+.database-section {
+  border-left: 4px solid #2196f3;
+}
+
+/* Upload Section Specific */
+.upload-section {
+  border-left: 4px solid #4caf50;
+}
+
+/* System Section Specific */
+.system-section {
+  border-left: 4px solid #9c27b0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .status-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .label,
+  .value {
+    flex: 1 1 auto;
+  }
+}

@@ -10,6 +10,11 @@
     </div>
 
     <div class="right-column">
+      <!-- Agent Status Section -->
+      <div *ngIf="selectedAgent">
+        <app-agent-status [agentId]="selectedAgent!.agent_id"></app-agent-status>
+      </div>
+
       <!-- Media Control Section -->
       <div *ngIf="selectedAgent" class="media-section">
         <app-media-control [agentId]="selectedAgent!.agent_id"></app-media-control>

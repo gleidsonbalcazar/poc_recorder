@@ -1,0 +1,130 @@
+<div class="agent-status-container" *ngIf="status">
+  <div class="status-header">
+    <h3>📊 Agent Status</h3>
+    <span class="last-update" *ngIf="lastUpdate">
+      Last update: {{ lastUpdate | date:'HH:mm:ss' }}
+    </span>
+  </div>
+
+  <!-- Recording Status -->
+  <div class="status-section recording-section">
+    <div class="section-header">
+      <h4>🎥 Recording Status</h4>
+      <span [className]="getRecordingStatusClass()">
+        {{ status.recording.is_recording ? '● REC' : '○ STOPPED' }}
+      </span>
+    </div>
+    <div class="section-content">
+      <div class="status-row" *ngIf="status.recording.is_recording">
+        <span class="label">Session:</span>
+        <span class="value">{{ status.recording.session_key || 'N/A' }}</span>
+      </div>
+      <div class="status-row" *ngIf="status.recording.is_recording">
+        <span class="label">Started:</span>
+        <span class="value">{{ formatDateTime(status.recording.started_at) }}</span>
+      </div>
+      <div class="status-row" *ngIf="status.recording.is_recording">
+        <span class="label">Duration:</span>
+        <span class="value duration-highlight">{{ formatDuration(status.recording.duration_seconds) }}</span>
+      </div>
+      <div class="status-row" *ngIf="status.recording.is_recording">
+        <span class="label">Segments:</span>
+        <span class="value">{{ status.recording.segment_count }} file(s)</span>
+      </div>
+      <div class="status-row">
+        <span class="label">Mode:</span>
+        <span class="value mode-badge">{{ status.recording.mode | uppercase }}</span>
+      </div>
+      <div class="status-row" *ngIf="!status.recording.is_recording">
+        <span class="label info-text">No active recording</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Database Statistics -->
+  <div class="status-section database-section">
+    <div class="section-header">
+      <h4>💾 Database Queue</h4>
+    </div>
+    <div class="section-content">
+      <div class="stats-grid">
+        <div class="stat-item">
+          <span class="stat-label">Pending</span>
+          <span class="stat-value pending">{{ status.database.pending }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Uploading</span>
+          <span class="stat-value uploading">{{ status.database.uploading }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Done</span>
+          <span class="stat-value done">{{ status.database.done }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Error</span>
+          <span class="stat-value error">{{ status.database.error }}</span>
+        </div>
+      </div>
+      <div class="status-row">
+        <span class="label">Total Size:</span>
+        <span class="value">{{ formatSize(status.database.total_size_mb) }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Upload Status -->
+  <div class="status-section upload-section">
+    <div class="section-header">
+      <h4>☁️ Upload Worker</h4>
+      <span [className]="getUploadStatusClass()">
+        {{ status.upload.enabled ? '✓ ENABLED' : '✗ DISABLED' }}
+      </span>
+    </div>
+    <div class="section-content">
+      <div class="status-row" *ngIf="status.upload.enabled">
+        <span class="label">Active Uploads:</span>
+        <span class="value">{{ status.upload.active_uploads }}</span>
+      </div>
+      <div class="status-row" *ngIf="status.upload.enabled && status.upload.endpoint">
+        <span class="label">Endpoint:</span>
+        <span class="value endpoint">{{ status.upload.endpoint }}</span>
+      </div>
+      <div class="status-row" *ngIf="!status.upload.enabled">
+        <span class="label info-text">Upload worker is disabled</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- System Information -->
+  <div class="status-section system-section">
+    <div class="section-header">
+      <h4>💻 System Info</h4>
+    </div>
+    <div class="section-content">
+      <div class="status-row">
+        <span class="label">OS:</span>
+        <span class="value">{{ status.system.os_version }}</span>
+      </div>
+      <div class="status-row">
+        <span class="label">Storage Path:</span>
+        <span class="value path">{{ status.system.storage_path }}</span>
+      </div>
+      <div class="status-row">
+        <span class="label">Free Disk Space:</span>
+        <span class="value disk-space">{{ status.system.disk_space_gb.toFixed(2) }} GB</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="status-loading" *ngIf="loading && !status">
+  <span>⏳ Loading agent status...</span>
+</div>
+
+<div class="status-error" *ngIf="error && !status">
+  <span>⚠️ {{ error }}</span>
+</div>
+
+<div class="status-placeholder" *ngIf="!status && !loading && !error">
+  <span>📊 Select an agent to view status</span>
+</div>

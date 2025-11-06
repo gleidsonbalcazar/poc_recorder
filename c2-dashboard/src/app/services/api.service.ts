@@ -1,10 +1,12 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { Agent } from '../models/agent.model';
 import { CommandRequest, CommandResponse } from '../models/command.model';
 import { Result, ResultsResponse } from '../models/result.model';
 import { MediaResponse, MediaCommand, SessionsResponse, RecordingSession } from '../models/media.model';
+import { AgentStatus } from '../models/status.model';
 import { environment } from '../../environments/environment';
 
 @Injectable({
@@ -148,5 +150,29 @@ export class ApiService {
    */
   getSessionDetails(agentId: string, sessionKey: string): Observable<RecordingSession> {
     return this.http.get<RecordingSession>(`${this.apiUrl}/media/${agentId}/session/${sessionKey}`);
+  }
+
+  // ===== STATUS METHODS =====
+
+  /**
+   * Get agent status (recording, database, upload, system info)
+   * Sends status:query command and retrieves the result
+   */
+  getAgentStatus(agentId: string): Observable<AgentStatus | null> {
+    return this.sendMediaCommand(agentId, 'status:query').pipe(
+      map(response => {
+        // Command was queued, now we need to get the result
+        return null; // Will be fetched separately by polling the result
+      })
+    );
+  }
+
+  /**
+   * Get agent status from a completed status:query result
+   */
+  getAgentStatusFromResult(taskId: string): Observable<AgentStatus | null> {
+    return this.getResult(taskId).pipe(
+      map(result => result.agent_status || null)
+    );
   }
 }
