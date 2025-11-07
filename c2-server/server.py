@@ -231,11 +231,13 @@ async def agent_stream(agent_id: str, hostname: str = "unknown"):
         command_queues.pop(old_agent_id, None)
         print(f"[SERVER] Removed duplicate agent: {old_agent_id} (same hostname: {hostname})")
 
-    # Register agent
+    # Register agent - preserve connected_at if agent already exists (reconnection)
+    existing_connected_at = agents[agent_id]["connected_at"] if agent_id in agents else datetime.utcnow().isoformat()
+
     agents[agent_id] = {
         "agent_id": agent_id,
         "hostname": hostname,
-        "connected_at": datetime.utcnow().isoformat(),
+        "connected_at": existing_connected_at,  # Preserve original connection time on reconnect
         "last_seen": datetime.utcnow().isoformat(),
         "status": "online"
     }

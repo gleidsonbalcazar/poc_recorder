@@ -16,6 +16,9 @@
         <div class="hostname-row">
           <span class="status-dot" [class]="getStatusClass(agent.status)"></span>
           <h3 class="hostname">{{ agent.hostname }}</h3>
+          <span class="recording-badge" *ngIf="agent.is_recording" title="Gravando">
+            🔴 REC
+          </span>
           <span class="selected-badge" *ngIf="selectedAgent?.agent_id === agent.agent_id">
             ✓ SELECIONADO
           </span>
@@ -23,7 +26,7 @@
         <div class="agent-meta">
           <span class="status-text" [class]="getStatusClass(agent.status)">{{ agent.status }}</span>
           <span class="separator">•</span>
-          <span class="last-seen">{{ getTimeSince(agent.last_seen) }}</span>
+          <span class="last-seen">{{ getTimeSince(agent.connected_at) }}</span>
         </div>
       </div>
     </div>

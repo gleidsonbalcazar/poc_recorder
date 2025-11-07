@@ -52,7 +52,9 @@ namespace Agent
                 await using var stream = await response.Content.ReadAsStreamAsync(_cancellationTokenSource.Token);
                 using var reader = new StreamReader(stream, Encoding.UTF8);
 
+                Log("[SSE] Iniciando processamento do stream...");
                 await ProcessStreamAsync(reader, _cancellationTokenSource.Token);
+                Log("[SSE] ProcessStreamAsync terminou - conexão será encerrada");
             }
             catch (HttpRequestException ex)
             {
@@ -85,7 +87,8 @@ namespace Agent
 
                 if (line == null) // End of stream
                 {
-                    Log("Stream encerrado pelo servidor");
+                    Log("[DISCONNECT] Stream encerrado pelo servidor (ReadLineAsync retornou null)");
+                    Log("[DISCONNECT] Isso geralmente indica que o servidor fechou a conexão ou timeout de rede");
                     break;
                 }
 
@@ -105,6 +108,9 @@ namespace Agent
                 // Comment (heartbeat)
                 if (line.StartsWith(":"))
                 {
+                    // Log heartbeat periodically for diagnostics (every 10th heartbeat)
+                    // Uncomment below line if you want to see heartbeat activity:
+                    // Log($"[HEARTBEAT] Recebido: {line}");
                     continue; // Ignore heartbeats
                 }
 
