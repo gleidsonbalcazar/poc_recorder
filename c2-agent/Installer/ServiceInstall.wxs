@@ -22,7 +22,7 @@
                         Description="!(loc.ServiceDescription)"
                         Type="ownProcess"
                         Start="auto"
-                        ErrorControl="normal"
+                        ErrorControl="ignore"
                         Account="LocalSystem"
                         Interactive="no" />
 
@@ -32,7 +32,7 @@
                         Start="install"
                         Stop="both"
                         Remove="uninstall"
-                        Wait="yes" />
+                        Wait="no" />
 
         <!-- Service Dependencies -->
         <util:ServiceConfig ServiceName="PaneasMonitorService"

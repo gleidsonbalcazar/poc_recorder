@@ -2,8 +2,8 @@ using PaneasMonitorService;
 
 var builder = Host.CreateApplicationBuilder(args);
 
-// Load service-specific configuration
-builder.Configuration.AddJsonFile("appsettings.Service.json", optional: false, reloadOnChange: true);
+// Load service-specific configuration (optional - falls back to appsettings.json)
+builder.Configuration.AddJsonFile("appsettings.Service.json", optional: true, reloadOnChange: true);
 
 // Configure Windows Service
 builder.Services.AddWindowsService(options =>
