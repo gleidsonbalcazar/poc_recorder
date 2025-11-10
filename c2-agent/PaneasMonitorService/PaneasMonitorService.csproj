@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-PaneasMonitorService-48494a0e-6fac-4b17-84ca-2cbb944fbe69</UserSecretsId>
+    <PlatformTarget>x64</PlatformTarget>
+    <Platforms>x64</Platforms>
+
+    <!-- Service Metadata -->
+    <Product>Paneas Monitor Service</Product>
+    <Description>Windows Service that monitors and protects Paneas Monitor agent</Description>
+    <Company>POC Project</Company>
+    <Copyright>Copyright © 2025</Copyright>
+  </PropertyGroup>
+
+  <!-- Force x64 platform -->
+  <PropertyGroup Condition="'$(Platform)' == 'AnyCPU' OR '$(Platform)' == ''">
+    <Platform>x64</Platform>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="9.0.0" />
+    <PackageReference Include="TaskScheduler" Version="2.11.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

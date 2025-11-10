@@ -61,6 +61,10 @@ namespace AgentApp
             }
             Console.WriteLine();
 
+            // Kill orphaned FFmpeg processes from previous runs
+            ProcessCleanup.KillOrphanedFFmpegProcesses();
+            Console.WriteLine();
+
             // Create executor and SSE client
             var executor = new CommandExecutor(
                 agentId: config.AgentId,

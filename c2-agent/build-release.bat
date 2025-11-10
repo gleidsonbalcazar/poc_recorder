@@ -44,7 +44,7 @@ echo.
 
 REM Copy executable to releases
 echo [5/5] Copying executable to releases...
-set SOURCE=Agent\bin\x64\Release\net10.0\win-x64\publish\Agent.exe
+set SOURCE=Agent\bin\x64\Release\net8.0\win-x64\publish\Agent.exe
 set DEST=releases\C2Agent-v1.0.0.exe
 
 if exist "%SOURCE%" (

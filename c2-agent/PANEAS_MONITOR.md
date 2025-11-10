@@ -550,7 +550,7 @@ dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
 dotnet run
 
 # Release
-cd bin/Release/net10.0/win-x64/publish
+cd bin/Release/net8.0/win-x64/publish
 Agent.exe
 ```
 

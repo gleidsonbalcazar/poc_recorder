@@ -55,6 +55,7 @@
     <!-- Single-file deployment -->
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
 
     <!-- Size optimization -->
     <!-- TRIMMING DESABILITADO - Necessário para COM interop (NAudio) e JSON reflection -->

@@ -16,6 +16,7 @@ public class FFmpegRecorder : IDisposable
     private CancellationTokenSource? _periodicRecordingCts;
     private Task? _periodicRecordingTask;
     private Task? _autoStopTask;
+    private ProcessJobObject? _ffmpegJobObject;
 
     // Configurações padrão
     public int FPS { get; set; } = 30; // Aumentado de 20 para 30 (melhor qualidade)
@@ -151,6 +152,14 @@ public class FFmpegRecorder : IDisposable
                 throw new Exception("Falha ao iniciar processo FFmpeg");
             }
 
+            // Assign FFmpeg to Job Object for automatic cleanup on Agent exit
+            _ffmpegJobObject = ProcessJobObject.CreateAndAssign(_ffmpegProcess);
+
+            if (_ffmpegJobObject == null)
+            {
+                Console.WriteLine("[FFmpegRecorder] ⚠ Warning: Failed to assign FFmpeg to Job Object - process may become orphaned if Agent crashes");
+            }
+
             _isRecording = true;
             Console.WriteLine($"[SYNC] T+{sw.ElapsedMilliseconds}ms: ✓ Processo FFmpeg iniciado (PID: {_ffmpegProcess.Id})");
             Console.WriteLine($"[SYNC] FFmpeg agora vai conectar ao pipe de áudio e iniciar captura de vídeo...");
@@ -272,6 +281,10 @@ public class FFmpegRecorder : IDisposable
             // Limpar processo
             _ffmpegProcess?.Dispose();
             _ffmpegProcess = null;
+
+            // Cleanup Job Object
+            _ffmpegJobObject?.Dispose();
+            _ffmpegJobObject = null;
 
             // Com segmentação, não precisa verificar acesso (segmentos já foram finalizados)
             if (SegmentSeconds > 0)
@@ -522,6 +535,10 @@ public class FFmpegRecorder : IDisposable
         }
 
         _ffmpegProcess?.Dispose();
+
+        // Cleanup Job Object (will kill FFmpeg if still running)
+        _ffmpegJobObject?.Dispose();
+        _ffmpegJobObject = null;
 
         // Cleanup AudioManager
         if (_audioManager != null)
