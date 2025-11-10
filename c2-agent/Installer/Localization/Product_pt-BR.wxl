@@ -1,51 +1,51 @@
 <?xml version="1.0" encoding="utf-8"?>
 <WixLocalization Culture="pt-BR" Codepage="1252"
-  xmlns="http://schemas.microsoft.com/wix/2006/localization">
+  xmlns="http://wixtoolset.org/schemas/v4/wxl">
 
   <!-- Locale ID -->
-  <String Id="LCID">1046</String>
+  <String Id="LCID" Value="1046" />
 
   <!-- Product Information -->
-  <String Id="ProductName">Paneas C2 Agent</String>
-  <String Id="ProductDescription">Sistema de controle e monitoramento remoto para Windows</String>
-  <String Id="Manufacturer">Paneas Monitor</String>
+  <String Id="ProductName" Value="Paneas C2 Agent" />
+  <String Id="ProductDescription" Value="Sistema de controle e monitoramento remoto para Windows" />
+  <String Id="Manufacturer" Value="Paneas Monitor" />
 
   <!-- Error Messages -->
-  <String Id="DowngradeError">Uma versão mais recente do [ProductName] já está instalada. A instalação não pode continuar.</String>
+  <String Id="DowngradeError" Value="Uma versão mais recente do [ProductName] já está instalada. A instalação não pode continuar." />
 
   <!-- Service Information -->
-  <String Id="ServiceDisplayName">Serviço Paneas C2 Agent</String>
-  <String Id="ServiceDescription">Serviço Windows para gerenciamento remoto, monitoramento e gravação de sessões</String>
+  <String Id="ServiceDisplayName" Value="Serviço Paneas C2 Agent" />
+  <String Id="ServiceDescription" Value="Serviço Windows para gerenciamento remoto, monitoramento e gravação de sessões" />
 
   <!-- Firewall Rule -->
-  <String Id="FirewallRuleDescription">Permitir servidor HTTP de mídia na porta 9000 para visualização de gravações</String>
+  <String Id="FirewallRuleDescription" Value="Permitir servidor HTTP de mídia na porta 9000 para visualização de gravações" />
 
   <!-- Feature Descriptions -->
-  <String Id="FeatureMainTitle">Agente Principal</String>
-  <String Id="FeatureMainDescription">Componentes principais do agente incluindo executável, serviço Windows, FFmpeg e ferramentas de gravação</String>
+  <String Id="FeatureMainTitle" Value="Agente Principal" />
+  <String Id="FeatureMainDescription" Value="Componentes principais do agente incluindo executável, serviço Windows, FFmpeg e ferramentas de gravação" />
 
   <!-- Shortcuts -->
-  <String Id="UninstallShortcutName">Desinstalar Paneas C2 Agent</String>
-  <String Id="UninstallShortcutDescription">Remover o Paneas C2 Agent do sistema</String>
-  <String Id="ConfigFolderShortcutName">Pasta de Configuração</String>
-  <String Id="ConfigFolderShortcutDescription">Abrir pasta com arquivos de configuração do agente</String>
+  <String Id="UninstallShortcutName" Value="Desinstalar Paneas C2 Agent" />
+  <String Id="UninstallShortcutDescription" Value="Remover o Paneas C2 Agent do sistema" />
+  <String Id="ConfigFolderShortcutName" Value="Pasta de Configuração" />
+  <String Id="ConfigFolderShortcutDescription" Value="Abrir pasta com arquivos de configuração do agente" />
 
   <!-- Configuration Dialog -->
-  <String Id="ConfigDialogTitle">Configuração do Agente</String>
-  <String Id="ConfigDialogDescription">Configure as URLs de conexão e o modo de operação do agente Paneas C2.</String>
+  <String Id="ConfigDialogTitle" Value="Configuração do Agente" />
+  <String Id="ConfigDialogDescription" Value="Configure as URLs de conexão e o modo de operação do agente Paneas C2." />
 
-  <String Id="C2ServerLabel">Servidor C2 (URL):</String>
-  <String Id="UploadEnabledLabel">Habilitar upload automático de vídeos</String>
-  <String Id="UploadEndpointLabel">Endpoint de Upload:</String>
-  <String Id="OperationModeLabel">Modo de Operação:</String>
+  <String Id="C2ServerLabel" Value="Servidor C2 (URL):" />
+  <String Id="UploadEnabledLabel" Value="Habilitar upload automático de vídeos" />
+  <String Id="UploadEndpointLabel" Value="Endpoint de Upload:" />
+  <String Id="OperationModeLabel" Value="Modo de Operação:" />
 
-  <String Id="ModeHybrid">Híbrido (C2 + Autônomo)</String>
-  <String Id="ModeC2Only">Somente C2 (Controlado remotamente)</String>
-  <String Id="ModeAutonomous">Somente Autônomo (Gravação independente)</String>
+  <String Id="ModeHybrid" Value="Híbrido (C2 + Autônomo)" />
+  <String Id="ModeC2Only" Value="Somente C2 (Controlado remotamente)" />
+  <String Id="ModeAutonomous" Value="Somente Autônomo (Gravação independente)" />
 
   <!-- Override WixUI standard strings -->
-  <String Id="WixUIBack" Overridable="yes">&amp;Voltar</String>
-  <String Id="WixUINext" Overridable="yes">&amp;Avançar</String>
-  <String Id="WixUICancel" Overridable="yes">Cancelar</String>
+  <String Id="WixUIBack" Overridable="yes" Value="&amp;Voltar" />
+  <String Id="WixUINext" Overridable="yes" Value="&amp;Avançar" />
+  <String Id="WixUICancel" Overridable="yes" Value="Cancelar" />
 
 </WixLocalization>

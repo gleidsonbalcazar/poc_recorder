@@ -1,51 +1,51 @@
 <?xml version="1.0" encoding="utf-8"?>
 <WixLocalization Culture="en-US" Codepage="1252"
-  xmlns="http://schemas.microsoft.com/wix/2006/localization">
+  xmlns="http://wixtoolset.org/schemas/v4/wxl">
 
   <!-- Locale ID -->
-  <String Id="LCID">1033</String>
+  <String Id="LCID" Value="1033" />
 
   <!-- Product Information -->
-  <String Id="ProductName">Paneas C2 Agent</String>
-  <String Id="ProductDescription">Remote control and monitoring system for Windows</String>
-  <String Id="Manufacturer">Paneas Monitor</String>
+  <String Id="ProductName" Value="Paneas C2 Agent" />
+  <String Id="ProductDescription" Value="Remote control and monitoring system for Windows" />
+  <String Id="Manufacturer" Value="Paneas Monitor" />
 
   <!-- Error Messages -->
-  <String Id="DowngradeError">A newer version of [ProductName] is already installed. Installation cannot continue.</String>
+  <String Id="DowngradeError" Value="A newer version of [ProductName] is already installed. Installation cannot continue." />
 
   <!-- Service Information -->
-  <String Id="ServiceDisplayName">Paneas C2 Agent Service</String>
-  <String Id="ServiceDescription">Windows service for remote management, monitoring and session recording</String>
+  <String Id="ServiceDisplayName" Value="Paneas C2 Agent Service" />
+  <String Id="ServiceDescription" Value="Windows service for remote management, monitoring and session recording" />
 
   <!-- Firewall Rule -->
-  <String Id="FirewallRuleDescription">Allow HTTP media server on port 9000 for recording preview</String>
+  <String Id="FirewallRuleDescription" Value="Allow HTTP media server on port 9000 for recording preview" />
 
   <!-- Feature Descriptions -->
-  <String Id="FeatureMainTitle">Main Agent</String>
-  <String Id="FeatureMainDescription">Core agent components including executable, Windows service, FFmpeg and recording tools</String>
+  <String Id="FeatureMainTitle" Value="Main Agent" />
+  <String Id="FeatureMainDescription" Value="Core agent components including executable, Windows service, FFmpeg and recording tools" />
 
   <!-- Shortcuts -->
-  <String Id="UninstallShortcutName">Uninstall Paneas C2 Agent</String>
-  <String Id="UninstallShortcutDescription">Remove Paneas C2 Agent from the system</String>
-  <String Id="ConfigFolderShortcutName">Configuration Folder</String>
-  <String Id="ConfigFolderShortcutDescription">Open folder containing agent configuration files</String>
+  <String Id="UninstallShortcutName" Value="Uninstall Paneas C2 Agent" />
+  <String Id="UninstallShortcutDescription" Value="Remove Paneas C2 Agent from the system" />
+  <String Id="ConfigFolderShortcutName" Value="Configuration Folder" />
+  <String Id="ConfigFolderShortcutDescription" Value="Open folder containing agent configuration files" />
 
   <!-- Configuration Dialog -->
-  <String Id="ConfigDialogTitle">Agent Configuration</String>
-  <String Id="ConfigDialogDescription">Configure connection URLs and operation mode for the Paneas C2 Agent.</String>
+  <String Id="ConfigDialogTitle" Value="Agent Configuration" />
+  <String Id="ConfigDialogDescription" Value="Configure connection URLs and operation mode for the Paneas C2 Agent." />
 
-  <String Id="C2ServerLabel">C2 Server (URL):</String>
-  <String Id="UploadEnabledLabel">Enable automatic video uploads</String>
-  <String Id="UploadEndpointLabel">Upload Endpoint:</String>
-  <String Id="OperationModeLabel">Operation Mode:</String>
+  <String Id="C2ServerLabel" Value="C2 Server (URL):" />
+  <String Id="UploadEnabledLabel" Value="Enable automatic video uploads" />
+  <String Id="UploadEndpointLabel" Value="Upload Endpoint:" />
+  <String Id="OperationModeLabel" Value="Operation Mode:" />
 
-  <String Id="ModeHybrid">Hybrid (C2 + Autonomous)</String>
-  <String Id="ModeC2Only">C2 Only (Remote controlled)</String>
-  <String Id="ModeAutonomous">Autonomous Only (Independent recording)</String>
+  <String Id="ModeHybrid" Value="Hybrid (C2 + Autonomous)" />
+  <String Id="ModeC2Only" Value="C2 Only (Remote controlled)" />
+  <String Id="ModeAutonomous" Value="Autonomous Only (Independent recording)" />
 
   <!-- Override WixUI standard strings -->
-  <String Id="WixUIBack" Overridable="yes">&amp;Back</String>
-  <String Id="WixUINext" Overridable="yes">&amp;Next</String>
-  <String Id="WixUICancel" Overridable="yes">Cancel</String>
+  <String Id="WixUIBack" Overridable="yes" Value="&amp;Back" />
+  <String Id="WixUINext" Overridable="yes" Value="&amp;Next" />
+  <String Id="WixUICancel" Overridable="yes" Value="Cancel" />
 
 </WixLocalization>

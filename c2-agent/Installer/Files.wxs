@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
 
   <Fragment>
     <!-- Agent Executable and Dependencies -->
@@ -34,13 +35,13 @@
               KeyPath="yes" />
       </Component>
 
-      <!-- ffprobe.exe (if exists) -->
-      <Component Id="FFprobeExe" Guid="E4F5A6B7-C8D9-4E5F-1A2B-3C4D5E6F7A8B">
+      <!-- ffprobe.exe (optional - not included) -->
+      <!-- <Component Id="FFprobeExe" Guid="E4F5A6B7-C8D9-4E5F-1A2B-3C4D5E6F7A8B">
         <File Id="ffprobe.exe"
               Name="ffprobe.exe"
               Source="$(var.ProjectDir)\..\Agent\ffmpeg\ffprobe.exe"
               KeyPath="yes" />
-      </Component>
+      </Component> -->
 
     </ComponentGroup>
 
@@ -99,8 +100,7 @@
                   Name="!(loc.UninstallShortcutName)"
                   Description="!(loc.UninstallShortcutDescription)"
                   Target="[SystemFolder]msiexec.exe"
-                  Arguments="/x [ProductCode]"
-                  Icon="ProductIcon" />
+                  Arguments="/x [ProductCode]" />
         <RemoveFolder Id="CleanupShortcutFolder" On="uninstall" />
         <RegistryValue Root="HKCU" Key="Software\PaneasMonitor" Name="ShortcutInstalled"
                        Type="integer" Value="1" KeyPath="yes" />
@@ -111,8 +111,7 @@
         <Shortcut Id="OpenConfigFolder"
                   Name="!(loc.ConfigFolderShortcutName)"
                   Description="!(loc.ConfigFolderShortcutDescription)"
-                  Target="[BinDataFolder]"
-                  Icon="ProductIcon" />
+                  Target="[BinDataFolder]" />
         <RegistryValue Root="HKCU" Key="Software\PaneasMonitor" Name="ConfigShortcutInstalled"
                        Type="integer" Value="1" KeyPath="yes" />
       </Component>

@@ -34,9 +34,9 @@
     <!-- Installation Sequence -->
     <InstallExecuteSequence>
       <!-- Create task after service is installed -->
-      <Custom Action="CreateScheduledTask" After="InstallServices">NOT Installed AND NOT REMOVE</Custom>
+      <Custom Action="CreateScheduledTask" After="InstallServices" Condition="NOT Installed AND NOT REMOVE" />
       <!-- Delete task before service is removed -->
-      <Custom Action="DeleteScheduledTask" Before="DeleteServices">REMOVE="ALL"</Custom>
+      <Custom Action="DeleteScheduledTask" Before="DeleteServices" Condition="REMOVE=&quot;ALL&quot;" />
     </InstallExecuteSequence>
 
   </Fragment>

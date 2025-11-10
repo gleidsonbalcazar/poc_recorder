@@ -12,7 +12,7 @@
         <!-- Service Executable File -->
         <File Id="PaneasMonitorService.exe"
               Name="PaneasMonitorService.exe"
-              Source="$(var.ProjectDir)\..\PaneasMonitorService\bin\Release\net8.0\win-x64\publish\PaneasMonitorService.exe"
+              Source="$(var.ProjectDir)\..\PaneasMonitorService\bin\x64\Release\net8.0\win-x64\publish\PaneasMonitorService.exe"
               KeyPath="yes" />
 
         <!-- Install Windows Service -->
@@ -23,7 +23,6 @@
                         Type="ownProcess"
                         Start="auto"
                         ErrorControl="normal"
-                        Arguments=""
                         Account="LocalSystem"
                         Interactive="no" />
 
@@ -55,24 +54,16 @@
     </ComponentGroup>
 
     <!-- Firewall Rules (optional) -->
-    <Fragment>
-      <ComponentGroup Id="FirewallComponents" Directory="BinFolder">
+    <!-- TODO: WiX v4 FirewallException syntax needs research - temporarily disabled -->
+    <ComponentGroup Id="FirewallComponents" Directory="BinFolder">
 
-        <!-- Allow inbound HTTP on port 9000 for media preview -->
-        <Component Id="FirewallRule" Guid="B3C4D5E6-F7A8-4B9C-0D1E-2F3A4B5C6D7E">
-          <util:FirewallException Id="AllowMediaServer"
-                                 Name="Paneas Monitor - Media Server"
-                                 Description="!(loc.FirewallRuleDescription)"
-                                 Port="9000"
-                                 Protocol="tcp"
-                                 Scope="localSubnet"
-                                 IgnoreFailure="yes" />
-          <RegistryValue Root="HKLM" Key="Software\PaneasMonitor\Firewall" Name="MediaServerRule"
-                         Type="integer" Value="1" KeyPath="yes" />
-        </Component>
+      <!-- Placeholder component for future firewall rule -->
+      <Component Id="FirewallRulePlaceholder" Guid="B3C4D5E6-F7A8-4B9C-0D1E-2F3A4B5C6D7E">
+        <RegistryValue Root="HKLM" Key="Software\PaneasMonitor\Firewall" Name="MediaServerRule"
+                       Type="integer" Value="0" KeyPath="yes" />
+      </Component>
 
-      </ComponentGroup>
-    </Fragment>
+    </ComponentGroup>
 
   </Fragment>
 

@@ -2,21 +2,15 @@
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
      xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
 
-  <!-- Product Definition -->
-  <Product Id="*"
-           Name="!(loc.ProductName)"
+  <!-- Package Definition -->
+  <Package Name="!(loc.ProductName)"
            Language="!(loc.LCID)"
            Version="1.0.0.0"
            Manufacturer="!(loc.Manufacturer)"
-           UpgradeCode="A1B2C3D4-E5F6-4A5B-9C8D-7E6F5A4B3C2D">
-
-    <!-- Package Information -->
-    <Package InstallerVersion="500"
-             Compressed="yes"
-             InstallScope="perMachine"
-             Description="!(loc.ProductDescription)"
-             Comments="Paneas C2 Agent - Remote Monitoring and Control System"
-             Manufacturer="!(loc.Manufacturer)" />
+           UpgradeCode="A1B2C3D4-E5F6-4A5B-9C8D-7E6F5A4B3C2D"
+           InstallerVersion="500"
+           Compressed="yes"
+           Scope="perMachine">
 
     <!-- Media - Single CAB embedded in MSI -->
     <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
@@ -26,8 +20,9 @@
                   AllowSameVersionUpgrades="yes" />
 
     <!-- Icons -->
-    <Icon Id="ProductIcon" SourceFile="$(var.ProjectDir)\..\Agent\icon.ico" />
-    <Property Id="ARPPRODUCTICON" Value="ProductIcon" />
+    <!-- TODO: Create icon.ico file -->
+    <!-- <Icon Id="ProductIcon" SourceFile="$(var.ProjectDir)\..\Agent\icon.ico" /> -->
+    <!-- <Property Id="ARPPRODUCTICON" Value="ProductIcon" /> -->
 
     <!-- Add/Remove Programs Properties -->
     <Property Id="ARPURLINFOABOUT" Value="https://github.com/gleidsonbalcazar/poc_recorder" />
@@ -46,8 +41,8 @@
     <!-- Configuration Properties (User-Configurable) -->
     <Property Id="C2_SERVER_URL" Value="http://localhost:8000" />
     <Property Id="UPLOAD_ENABLED" Value="false" />
-    <Property Id="UPLOAD_ENDPOINT" Value="" />
-    <Property Id="TUS_SERVER_URL" Value="" />
+    <Property Id="UPLOAD_ENDPOINT" />
+    <Property Id="TUS_SERVER_URL" />
     <Property Id="OPERATION_MODE" Value="hybrid" />
 
     <!-- Directory Structure -->
@@ -94,6 +89,7 @@
 
       <!-- Service Installation -->
       <ComponentGroupRef Id="ServiceComponents" />
+      <ComponentGroupRef Id="FirewallComponents" />
 
       <!-- Task Scheduler -->
       <ComponentGroupRef Id="TaskSchedulerComponents" />
@@ -103,39 +99,17 @@
     </Feature>
 
     <!-- Custom Actions -->
-    <CustomAction Id="WriteConfiguration"
-                  BinaryKey="CustomActionsDLL"
-                  DllEntry="WriteConfigurationCA"
-                  Execute="deferred"
-                  Impersonate="no"
-                  Return="check" />
-
-    <CustomAction Id="SetConfigParams"
-                  Property="WriteConfiguration"
-                  Value="INSTALLFOLDER=[INSTALLFOLDER];C2_SERVER_URL=[C2_SERVER_URL];UPLOAD_ENABLED=[UPLOAD_ENABLED];UPLOAD_ENDPOINT=[UPLOAD_ENDPOINT];TUS_SERVER_URL=[TUS_SERVER_URL];OPERATION_MODE=[OPERATION_MODE]" />
+    <!-- TODO: Implement CustomAction DLL to write appsettings.json configuration -->
 
     <!-- Installation Sequence -->
     <InstallExecuteSequence>
-      <!-- Write configuration after files are installed -->
-      <Custom Action="SetConfigParams" Before="WriteConfiguration">NOT Installed</Custom>
-      <Custom Action="WriteConfiguration" After="InstallFiles">NOT Installed</Custom>
+      <!-- Configuration will be written by CustomAction DLL in future version -->
     </InstallExecuteSequence>
 
     <!-- UI Configuration -->
-    <UIRef Id="WixUI_FeatureTree" />
-    <UIRef Id="WixUI_ErrorProgressText" />
+    <!-- TODO: WiX v4 UI implementation needs research - basic MSI without custom UI for now -->
 
-    <!-- Custom Configuration Dialog -->
-    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
-
-    <!-- License Agreement -->
-    <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
-
-    <!-- Banner Images -->
-    <WixVariable Id="WixUIBannerBmp" Value="banner.bmp" />
-    <WixVariable Id="WixUIDialogBmp" Value="dialog.bmp" />
-
-  </Product>
+  </Package>
 
   <!-- Component Groups will be defined in separate files -->
 
