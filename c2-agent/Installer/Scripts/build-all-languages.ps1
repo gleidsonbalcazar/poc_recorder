@@ -90,7 +90,7 @@ Write-Host ""
 Write-Host "[4/5] Building MSI installers..." -ForegroundColor Yellow
 Write-Host ""
 
-$languages = @("pt-BR", "es-MX", "en-US")
+$languages = @("pt-BR")  # TODO: Add es-MX and en-US when ready for multi-language release
 $builtMSIs = @()
 
 foreach ($lang in $languages) {
