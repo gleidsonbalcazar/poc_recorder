@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+
+  <Fragment>
+    <!-- Custom Configuration Dialog -->
+    <UI Id="ConfigDialog">
+
+      <Dialog Id="ConfigurationDlg" Width="370" Height="270" Title="!(loc.ConfigDialogTitle)">
+
+        <!-- Title -->
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes">
+          <Text>{\WixUI_Font_Title}!(loc.ConfigDialogTitle)</Text>
+        </Control>
+
+        <!-- Description -->
+        <Control Id="Description" Type="Text" X="25" Y="23" Width="320" Height="30" Transparent="yes" NoPrefix="yes">
+          <Text>!(loc.ConfigDialogDescription)</Text>
+        </Control>
+
+        <!-- Horizontal Line -->
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+
+        <!-- C2 Server URL Label -->
+        <Control Id="C2ServerLabel" Type="Text" X="25" Y="60" Width="120" Height="15" Transparent="yes" NoPrefix="yes">
+          <Text>!(loc.C2ServerLabel)</Text>
+        </Control>
+
+        <!-- C2 Server URL TextBox -->
+        <Control Id="C2ServerEdit" Type="Edit" X="25" Y="75" Width="320" Height="18" Property="C2_SERVER_URL" />
+
+        <!-- Upload Enabled Checkbox -->
+        <Control Id="UploadCheckbox" Type="CheckBox" X="25" Y="110" Width="320" Height="17" Property="UPLOAD_ENABLED" CheckBoxValue="true">
+          <Text>!(loc.UploadEnabledLabel)</Text>
+        </Control>
+
+        <!-- Upload Endpoint Label -->
+        <Control Id="UploadEndpointLabel" Type="Text" X="45" Y="130" Width="120" Height="15" Transparent="yes" NoPrefix="yes">
+          <Text>!(loc.UploadEndpointLabel)</Text>
+          <Condition Action="show">UPLOAD_ENABLED="true"</Condition>
+          <Condition Action="hide">UPLOAD_ENABLED&lt;&gt;"true"</Condition>
+        </Control>
+
+        <!-- Upload Endpoint TextBox -->
+        <Control Id="UploadEndpointEdit" Type="Edit" X="45" Y="145" Width="300" Height="18" Property="UPLOAD_ENDPOINT">
+          <Condition Action="enable">UPLOAD_ENABLED="true"</Condition>
+          <Condition Action="disable">UPLOAD_ENABLED&lt;&gt;"true"</Condition>
+        </Control>
+
+        <!-- Operation Mode Label -->
+        <Control Id="ModeLabel" Type="Text" X="25" Y="175" Width="120" Height="15" Transparent="yes" NoPrefix="yes">
+          <Text>!(loc.OperationModeLabel)</Text>
+        </Control>
+
+        <!-- Operation Mode RadioButtonGroup -->
+        <Control Id="ModeRadioGroup" Type="RadioButtonGroup" X="45" Y="190" Width="300" Height="40" Property="OPERATION_MODE">
+          <RadioButtonGroup Property="OPERATION_MODE">
+            <RadioButton Text="!(loc.ModeHybrid)" Value="hybrid" X="0" Y="0" Width="280" Height="15" />
+            <RadioButton Text="!(loc.ModeC2Only)" Value="c2" X="0" Y="17" Width="280" Height="15" />
+            <RadioButton Text="!(loc.ModeAutonomous)" Value="autonomous" X="0" Y="34" Width="280" Height="15" />
+          </RadioButtonGroup>
+        </Control>
+
+        <!-- Bottom Line -->
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+
+        <!-- Back Button -->
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="!(loc.WixUIBack)">
+          <Publish Event="NewDialog" Value="InstallDirDlg">1</Publish>
+        </Control>
+
+        <!-- Next Button -->
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="!(loc.WixUINext)">
+          <Publish Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+        </Control>
+
+        <!-- Cancel Button -->
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)">
+          <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
+        </Control>
+
+      </Dialog>
+
+    </UI>
+
+    <!-- Insert custom dialog into the installation sequence -->
+    <UI>
+      <UIRef Id="WixUI_FeatureTree" />
+
+      <!-- Show configuration dialog after feature selection -->
+      <Publish Dialog="CustomizeDlg" Control="Next" Event="NewDialog" Value="ConfigurationDlg" Order="1">1</Publish>
+
+      <!-- Allow going back from VerifyReadyDlg -->
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="ConfigurationDlg" Order="1">1</Publish>
+    </UI>
+
+  </Fragment>
+
+</Wix>

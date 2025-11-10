@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+
+  <Fragment>
+    <!-- Task Scheduler Components -->
+    <ComponentGroup Id="TaskSchedulerComponents" Directory="BinFolder">
+
+      <!-- Create Scheduled Task via Custom Action -->
+      <Component Id="TaskSchedulerComponent" Guid="C4D5E6F7-A8B9-4C0D-1E2F-3A4B5C6D7E8F">
+
+        <!-- Registry marker to track task creation -->
+        <RegistryValue Root="HKLM" Key="Software\PaneasMonitor\Tasks" Name="PaneasMonitorTask"
+                       Type="string" Value="Installed" KeyPath="yes" />
+
+      </Component>
+
+    </ComponentGroup>
+
+    <!-- Custom Actions for Task Scheduler -->
+    <CustomAction Id="CreateScheduledTask"
+                  Directory="SystemFolder"
+                  ExeCommand='schtasks.exe /Create /F /SC ONLOGON /TN "PaneasMonitorTask" /TR "\"[BinFolder]Agent.exe\"" /RL HIGHEST /RU "INTERACTIVE"'
+                  Execute="deferred"
+                  Impersonate="no"
+                  Return="ignore" />
+
+    <CustomAction Id="DeleteScheduledTask"
+                  Directory="SystemFolder"
+                  ExeCommand='schtasks.exe /Delete /F /TN "PaneasMonitorTask"'
+                  Execute="deferred"
+                  Impersonate="no"
+                  Return="ignore" />
+
+    <!-- Installation Sequence -->
+    <InstallExecuteSequence>
+      <!-- Create task after service is installed -->
+      <Custom Action="CreateScheduledTask" After="InstallServices">NOT Installed AND NOT REMOVE</Custom>
+      <!-- Delete task before service is removed -->
+      <Custom Action="DeleteScheduledTask" Before="DeleteServices">REMOVE="ALL"</Custom>
+    </InstallExecuteSequence>
+
+  </Fragment>
+
+</Wix>

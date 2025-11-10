@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WixLocalization Culture="pt-BR" Codepage="1252"
+  xmlns="http://schemas.microsoft.com/wix/2006/localization">
+
+  <!-- Locale ID -->
+  <String Id="LCID">1046</String>
+
+  <!-- Product Information -->
+  <String Id="ProductName">Paneas C2 Agent</String>
+  <String Id="ProductDescription">Sistema de controle e monitoramento remoto para Windows</String>
+  <String Id="Manufacturer">Paneas Monitor</String>
+
+  <!-- Error Messages -->
+  <String Id="DowngradeError">Uma versão mais recente do [ProductName] já está instalada. A instalação não pode continuar.</String>
+
+  <!-- Service Information -->
+  <String Id="ServiceDisplayName">Serviço Paneas C2 Agent</String>
+  <String Id="ServiceDescription">Serviço Windows para gerenciamento remoto, monitoramento e gravação de sessões</String>
+
+  <!-- Firewall Rule -->
+  <String Id="FirewallRuleDescription">Permitir servidor HTTP de mídia na porta 9000 para visualização de gravações</String>
+
+  <!-- Feature Descriptions -->
+  <String Id="FeatureMainTitle">Agente Principal</String>
+  <String Id="FeatureMainDescription">Componentes principais do agente incluindo executável, serviço Windows, FFmpeg e ferramentas de gravação</String>
+
+  <!-- Shortcuts -->
+  <String Id="UninstallShortcutName">Desinstalar Paneas C2 Agent</String>
+  <String Id="UninstallShortcutDescription">Remover o Paneas C2 Agent do sistema</String>
+  <String Id="ConfigFolderShortcutName">Pasta de Configuração</String>
+  <String Id="ConfigFolderShortcutDescription">Abrir pasta com arquivos de configuração do agente</String>
+
+  <!-- Configuration Dialog -->
+  <String Id="ConfigDialogTitle">Configuração do Agente</String>
+  <String Id="ConfigDialogDescription">Configure as URLs de conexão e o modo de operação do agente Paneas C2.</String>
+
+  <String Id="C2ServerLabel">Servidor C2 (URL):</String>
+  <String Id="UploadEnabledLabel">Habilitar upload automático de vídeos</String>
+  <String Id="UploadEndpointLabel">Endpoint de Upload:</String>
+  <String Id="OperationModeLabel">Modo de Operação:</String>
+
+  <String Id="ModeHybrid">Híbrido (C2 + Autônomo)</String>
+  <String Id="ModeC2Only">Somente C2 (Controlado remotamente)</String>
+  <String Id="ModeAutonomous">Somente Autônomo (Gravação independente)</String>
+
+  <!-- Override WixUI standard strings -->
+  <String Id="WixUIBack" Overridable="yes">&amp;Voltar</String>
+  <String Id="WixUINext" Overridable="yes">&amp;Avançar</String>
+  <String Id="WixUICancel" Overridable="yes">Cancelar</String>
+
+</WixLocalization>

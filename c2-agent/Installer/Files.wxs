@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+
+  <Fragment>
+    <!-- Agent Executable and Dependencies -->
+    <ComponentGroup Id="AgentComponents" Directory="BinFolder">
+
+      <!-- Agent.exe (main executable) -->
+      <Component Id="AgentExe" Guid="B1C2D3E4-F5A6-4B5C-8D9E-0F1A2B3C4D5E">
+        <File Id="AgentExe"
+              Name="Agent.exe"
+              Source="$(var.ProjectDir)\..\Agent\bin\x64\Release\net8.0\win-x64\publish\Agent.exe"
+              KeyPath="yes" />
+      </Component>
+
+      <!-- appsettings.json (will be modified by CustomAction) -->
+      <Component Id="AgentConfig" Guid="C2D3E4F5-A6B7-4C5D-9E0F-1A2B3C4D5E6F">
+        <File Id="appsettings.json"
+              Name="appsettings.json"
+              Source="$(var.ProjectDir)\..\Agent\appsettings.json"
+              KeyPath="yes" />
+      </Component>
+
+    </ComponentGroup>
+
+    <!-- FFmpeg Components -->
+    <ComponentGroup Id="FFmpegComponents" Directory="FFmpegFolder">
+
+      <!-- ffmpeg.exe -->
+      <Component Id="FFmpegExe" Guid="D3E4F5A6-B7C8-4D5E-0F1A-2B3C4D5E6F7A">
+        <File Id="ffmpeg.exe"
+              Name="ffmpeg.exe"
+              Source="$(var.ProjectDir)\..\Agent\ffmpeg\ffmpeg.exe"
+              KeyPath="yes" />
+      </Component>
+
+      <!-- ffprobe.exe (if exists) -->
+      <Component Id="FFprobeExe" Guid="E4F5A6B7-C8D9-4E5F-1A2B-3C4D5E6F7A8B">
+        <File Id="ffprobe.exe"
+              Name="ffprobe.exe"
+              Source="$(var.ProjectDir)\..\Agent\ffmpeg\ffprobe.exe"
+              KeyPath="yes" />
+      </Component>
+
+    </ComponentGroup>
+
+    <!-- Configuration Files in ProgramData -->
+    <ComponentGroup Id="ConfigurationComponents" Directory="BinDataFolder">
+
+      <!-- Copy appsettings.json to ProgramData for runtime use -->
+      <Component Id="RuntimeConfig" Guid="F5A6B7C8-D9E0-4F1A-2B3C-4D5E6F7A8B9C">
+        <File Id="RuntimeConfigJson"
+              Name="appsettings.json"
+              Source="$(var.ProjectDir)\..\Agent\appsettings.json"
+              KeyPath="yes" />
+      </Component>
+
+      <!-- Registry entry for install location -->
+      <Component Id="RegistryEntries" Guid="A6B7C8D9-E0F1-4A2B-3C4D-5E6F7A8B9C0D">
+        <RegistryKey Root="HKLM" Key="Software\PaneasMonitor">
+          <RegistryValue Type="string" Name="InstallLocation" Value="[INSTALLFOLDER]" KeyPath="yes" />
+          <RegistryValue Type="string" Name="Version" Value="1.0.0" />
+          <RegistryValue Type="string" Name="C2ServerUrl" Value="[C2_SERVER_URL]" />
+          <RegistryValue Type="string" Name="OperationMode" Value="[OPERATION_MODE]" />
+        </RegistryKey>
+      </Component>
+
+    </ComponentGroup>
+
+    <!-- Data Folder Components (create empty directories) -->
+    <ComponentGroup Id="DataFolderComponents" Directory="PaneasDataFolder">
+
+      <!-- Logs Folder -->
+      <Component Id="LogsFolderComponent" Guid="B7C8D9E0-F1A2-4B3C-4D5E-6F7A8B9C0D1E">
+        <CreateFolder Directory="LogsFolder">
+          <util:PermissionEx User="Users" GenericAll="yes" />
+        </CreateFolder>
+        <RegistryValue Root="HKLM" Key="Software\PaneasMonitor\Folders" Name="LogsFolder"
+                       Type="string" Value="[LogsFolder]" KeyPath="yes" />
+      </Component>
+
+      <!-- Videos Folder -->
+      <Component Id="VideosFolderComponent" Guid="C8D9E0F1-A2B3-4C4D-5E6F-7A8B9C0D1E2F">
+        <CreateFolder Directory="VideosFolder">
+          <util:PermissionEx User="Users" GenericAll="yes" />
+        </CreateFolder>
+        <RegistryValue Root="HKLM" Key="Software\PaneasMonitor\Folders" Name="VideosFolder"
+                       Type="string" Value="[VideosFolder]" KeyPath="yes" />
+      </Component>
+
+    </ComponentGroup>
+
+    <!-- Shortcuts -->
+    <ComponentGroup Id="ShortcutComponents" Directory="ApplicationProgramsFolder">
+
+      <!-- Uninstall Shortcut -->
+      <Component Id="UninstallShortcut" Guid="D9E0F1A2-B3C4-4D5E-6F7A-8B9C0D1E2F3A">
+        <Shortcut Id="UninstallProduct"
+                  Name="!(loc.UninstallShortcutName)"
+                  Description="!(loc.UninstallShortcutDescription)"
+                  Target="[SystemFolder]msiexec.exe"
+                  Arguments="/x [ProductCode]"
+                  Icon="ProductIcon" />
+        <RemoveFolder Id="CleanupShortcutFolder" On="uninstall" />
+        <RegistryValue Root="HKCU" Key="Software\PaneasMonitor" Name="ShortcutInstalled"
+                       Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+
+      <!-- Configuration Folder Shortcut -->
+      <Component Id="ConfigFolderShortcut" Guid="E0F1A2B3-C4D5-4E6F-7A8B-9C0D1E2F3A4B">
+        <Shortcut Id="OpenConfigFolder"
+                  Name="!(loc.ConfigFolderShortcutName)"
+                  Description="!(loc.ConfigFolderShortcutDescription)"
+                  Target="[BinDataFolder]"
+                  Icon="ProductIcon" />
+        <RegistryValue Root="HKCU" Key="Software\PaneasMonitor" Name="ConfigShortcutInstalled"
+                       Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+
+    </ComponentGroup>
+
+  </Fragment>
+
+</Wix>
