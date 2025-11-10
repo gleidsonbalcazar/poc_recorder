@@ -13,6 +13,7 @@ public class ConfigManager
     public C2Config C2 { get; set; } = new();
     public DatabaseConfig Database { get; set; } = new();
     public StorageConfig Storage { get; set; } = new();
+    public TusConfig Tus { get; set; } = new();
 
     public static ConfigManager LoadFromFile(string path = "appsettings.json")
     {
@@ -95,4 +96,11 @@ public class DatabaseConfig
 public class StorageConfig
 {
     public string BasePath { get; set; } = "";
+}
+
+public class TusConfig
+{
+    public string TusServerUrl { get; set; } = "";
+    public int MaxRetries { get; set; } = 3;
+    public int RetryDelayMs { get; set; } = 1000;
 }

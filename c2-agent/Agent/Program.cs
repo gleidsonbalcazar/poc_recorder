@@ -72,7 +72,7 @@ namespace AgentApp
                 commandTimeoutMs: 60000
             );
 
-            // Apply recording configuration
+            // Apply recording configuration (from appsettings)
             executor.VideoRecorder.SegmentSeconds = appConfig.Recording.SegmentSeconds;
             executor.VideoRecorder.FPS = appConfig.Recording.FPS;
             executor.VideoRecorder.VideoBitrate = appConfig.Recording.VideoBitrate;
@@ -109,7 +109,10 @@ namespace AgentApp
                         MaxConcurrentUploads = appConfig.Upload.MaxConcurrentUploads,
                         MaxRetries = appConfig.Upload.MaxRetries,
                         UploadEndpoint = appConfig.Upload.Endpoint,
-                        ApiKey = appConfig.Upload.ApiKey
+                        ApiKey = appConfig.Upload.ApiKey,
+                        TusServerUrl = appConfig.Tus.TusServerUrl,
+                        TusMaxRetries = appConfig.Tus.MaxRetries,
+                        TusRetryDelayMs = appConfig.Tus.RetryDelayMs
                     };
                 }
 

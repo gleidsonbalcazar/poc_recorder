@@ -1,0 +1,11 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\c2-agent",
+    "\\c2-agent\\Agent",
+    "\\c2-dashboard\\src",
+    "\\c2-server"
+  ],
+  "SelectedNode": "\\c2-server\\server.py",
+  "PreviewInSolutionExplorer": false
+}
