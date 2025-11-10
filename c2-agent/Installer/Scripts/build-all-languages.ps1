@@ -129,13 +129,13 @@ foreach ($lang in $languages) {
             2>&1 | Out-Null
 
         if ($LASTEXITCODE -eq 0) {
-            Write-Host "  ✓ Built: $msiName" -ForegroundColor Green
+            Write-Host "  [OK] Built: $msiName" -ForegroundColor Green
             $builtMSIs += $msiPath
         } else {
-            Write-Host "  ✗ Failed to build $lang MSI (exit code: $LASTEXITCODE)" -ForegroundColor Red
+            Write-Host "  [!] Failed to build $lang MSI (exit code: $LASTEXITCODE)" -ForegroundColor Red
         }
     } catch {
-        Write-Host "  ✗ Error building $lang MSI: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "  [!] Error building $lang MSI: $($_.Exception.Message)" -ForegroundColor Red
     }
     Write-Host ""
 }
@@ -148,7 +148,7 @@ if ($builtMSIs.Count -gt 0) {
     foreach ($msi in $builtMSIs) {
         $msiInfo = Get-Item $msi
         $sizeMB = [math]::Round($msiInfo.Length / 1MB, 2)
-        Write-Host "  - $($msiInfo.Name) ($sizeMB MB)" -ForegroundColor Gray
+        Write-Host "  - $($msiInfo.Name) (${sizeMB} MB)" -ForegroundColor Gray
     }
     Write-Host ""
     Write-Host "Output directory: $outputDir" -ForegroundColor White
