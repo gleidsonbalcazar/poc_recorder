@@ -857,18 +857,6 @@ Adicionar verificação de integridade:
 
 ---
 
-## 👥 Autores e Contribuições
-
-**Desenvolvimento:**
-- Implementação inicial: Claude Code (Anthropic)
-- Especificação e testes: Equipe Paneas
-
-**Contribuições:**
-- Reportar bugs: [GitHub Issues](https://github.com/gleidsonbalcazar/poc_recorder/issues)
-- Pull requests: [GitHub PR](https://github.com/gleidsonbalcazar/poc_recorder/pulls)
-
----
-
 ## 📄 Licença
 
 Este projeto é fornecido "como está" para fins educacionais e de demonstração.
