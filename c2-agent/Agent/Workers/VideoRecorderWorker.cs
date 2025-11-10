@@ -1,4 +1,4 @@
-using Agent.Database;
+﻿using Agent.Database;
 using Agent.Database.Models;
 
 namespace Agent.Workers;
@@ -13,6 +13,9 @@ public class VideoRecorderWorker
     private readonly CancellationTokenSource _cts;
     private Task? _workerTask;
     private bool _isRunning;
+    private FileSystemWatcher? _segmentWatcher;
+    private readonly HashSet<string> _registeredSegments = new();
+    private string? _currentProcessSnapshot;
 
     // Configurações
     public int RecordingIntervalMinutes { get; set; } = 60; // Gravar a cada 60 minutos
@@ -64,6 +67,10 @@ public class VideoRecorderWorker
             await _recorder.StopRecording();
         }
 
+        // Parar watcher de segmentos (se ativo)
+        try { _segmentWatcher?.Dispose(); _segmentWatcher = null; } catch { }
+        _currentProcessSnapshot = null;
+
         _isRunning = false;
         Console.WriteLine("[VideoRecorderWorker] Worker parado");
     }
@@ -113,6 +120,7 @@ public class VideoRecorderWorker
 
         // Capturar processos no início da sessão
         string processSnapshot = ProcessMonitor.CaptureAndSerialize();
+        _currentProcessSnapshot = processSnapshot;
 
         // Iniciar gravação (duração 0 = sem limite)
         string outputPath = await _recorder.StartRecording(0);
@@ -133,6 +141,75 @@ public class VideoRecorderWorker
         long recordId = _database.InsertVideoRecord(record);
         Console.WriteLine($"[VideoRecorderWorker] Registro criado: ID={recordId}");
 
+        // Se segmenta��o estiver ativa, monitorar novos segmentos e enfileirar como 'pending'
+        try
+        {
+            if (_recorder.SegmentSeconds > 0 && Directory.Exists(outputPath))
+            {
+                Console.WriteLine($"[VideoRecorderWorker] Monitorando segmentos em: {outputPath}");
+                _segmentWatcher = new FileSystemWatcher(outputPath, "*.mp4")
+                {
+                    IncludeSubdirectories = false,
+                    EnableRaisingEvents = true,
+                    NotifyFilter = NotifyFilters.FileName | NotifyFilters.Size | NotifyFilters.LastWrite
+                };
+
+                FileSystemEventHandler onCreatedOrChanged = async (s, e) =>
+                {
+                    var path = e.FullPath;
+                    try
+                    {
+                        lock (_registeredSegments)
+                        {
+                            if (_registeredSegments.Contains(path)) return;
+                        }
+
+                        if (await WaitForFileStableAsync(path, ct))
+                        {
+                            lock (_registeredSegments)
+                            {
+                                if (_registeredSegments.Contains(path)) return;
+                                _registeredSegments.Add(path);
+                            }
+                            if (!string.IsNullOrEmpty(sessionKey))
+                            {
+                                RegisterSegment(path, sessionKey);
+                            }
+                        }
+                    }
+                    catch { }
+                };
+
+                _segmentWatcher.Created += onCreatedOrChanged;
+                _segmentWatcher.Changed += onCreatedOrChanged;
+
+                // Processar quaisquer arquivos j� existentes
+                try
+                {
+                    foreach (var file in Directory.GetFiles(outputPath, "*.mp4", SearchOption.TopDirectoryOnly))
+                    {
+                        if (await WaitForFileStableAsync(file, ct))
+                        {
+                            lock (_registeredSegments)
+                            {
+                                if (_registeredSegments.Contains(file)) continue;
+                                _registeredSegments.Add(file);
+                            }
+                            if (!string.IsNullOrEmpty(sessionKey))
+                            {
+                                RegisterSegment(file, sessionKey);
+                            }
+                        }
+                    }
+                }
+                catch { }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[VideoRecorderWorker] Erro ao iniciar watcher de segmentos: {ex.Message}");
+        }
+
         // Aguardar cancelamento (gravação contínua até ser parada)
         await Task.Delay(Timeout.Infinite, ct);
     }
@@ -146,6 +223,7 @@ public class VideoRecorderWorker
 
         // Capturar processos no início da sessão
         string processSnapshot = ProcessMonitor.CaptureAndSerialize();
+        _currentProcessSnapshot = processSnapshot;
 
         // Iniciar gravação com duração limitada
         int durationSeconds = RecordingDurationMinutes * 60;
@@ -223,10 +301,14 @@ public class VideoRecorderWorker
             if (!fileInfo.Exists)
                 return;
 
+            // Capturar snapshot de processos no momento do registro do segmento (per-segment)
+            string processSnapshot = ProcessMonitor.CaptureAndSerialize();
+
             var record = new VideoRecord
             {
                 FilePath = filePath,
                 SessionKey = sessionKey,
+                ProcessSnapshot = processSnapshot,
                 Status = "pending",
                 FileSizeBytes = fileInfo.Length
             };
@@ -239,4 +321,28 @@ public class VideoRecorderWorker
             Console.WriteLine($"[VideoRecorderWorker] Erro ao registrar segmento: {ex.Message}");
         }
     }
+
+    private static async Task<bool> WaitForFileStableAsync(string path, CancellationToken ct, int checks = 3, int delayMs = 400)
+    {
+        try
+        {
+            long lastSize = -1;
+            for (int i = 0; i < checks; i++)
+            {
+                ct.ThrowIfCancellationRequested();
+                var fi = new FileInfo(path);
+                if (!fi.Exists) return false;
+                if (fi.Length > 0 && fi.Length == lastSize)
+                {
+                    return true;
+                }
+                lastSize = fi.Length;
+                await Task.Delay(delayMs, ct);
+            }
+        }
+        catch { }
+        return false;
+    }
 }
+
+

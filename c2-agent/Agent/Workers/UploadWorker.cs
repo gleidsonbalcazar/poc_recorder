@@ -1,4 +1,4 @@
-using Agent.Database;
+﻿using Agent.Database;
 using Agent.Database.Models;
 
 namespace Agent.Workers;
@@ -13,6 +13,7 @@ public class UploadWorker
     private Task? _workerTask;
     private bool _isRunning;
     private HttpUploadClient? _uploadClient;
+    private TusUploadClient? _tusClient;
 
     // Configurações
     public int PollIntervalSeconds { get; set; } = 30; // Verificar fila a cada 30 segundos
@@ -20,6 +21,9 @@ public class UploadWorker
     public int MaxRetries { get; set; } = 3; // Máximo de tentativas por vídeo
     public string? UploadEndpoint { get; set; }
     public string? ApiKey { get; set; }
+    public string? TusServerUrl { get; set; }
+    public int TusMaxRetries { get; set; } = 3;
+    public int TusRetryDelayMs { get; set; } = 1000;
 
     public UploadWorker(DatabaseManager database)
     {
@@ -49,6 +53,13 @@ public class UploadWorker
             Console.WriteLine("[UploadWorker] AVISO: Endpoint de upload não configurado, uploads serão simulados");
         }
 
+        // Inicializar cliente TUS se configurado
+        if (!string.IsNullOrWhiteSpace(TusServerUrl))
+        {
+            _tusClient = new TusUploadClient(TusServerUrl!, TusMaxRetries, TusRetryDelayMs, _database);
+            Console.WriteLine($"[UploadWorker] Upload TUS configurado: {TusServerUrl}");
+        }
+
         _isRunning = true;
         _workerTask = Task.Run(() => WorkerLoop(_cts.Token));
         Console.WriteLine("[UploadWorker] Worker iniciado");
@@ -71,6 +82,7 @@ public class UploadWorker
         }
 
         _uploadClient?.Dispose();
+        _tusClient?.Dispose();
         _isRunning = false;
         Console.WriteLine("[UploadWorker] Worker parado");
     }
@@ -140,7 +152,11 @@ public class UploadWorker
 
             // Upload real se cliente estiver configurado, senão simular
             bool uploadSuccess;
-            if (_uploadClient != null)
+                        if (_tusClient != null)
+            {
+                uploadSuccess = await _tusClient.UploadAsync(video, uploadTaskId, ct);
+            }
+            else if (_uploadClient != null)
             {
                 uploadSuccess = await _uploadClient.UploadVideoAsync(video, uploadTaskId, ct);
             }
@@ -198,7 +214,20 @@ public class UploadWorker
 
                 // Validar pelo menos o primeiro arquivo
                 var firstFile = files[0];
-                return File.Exists(firstFile) && new FileInfo(firstFile).Length > 0;
+                if (!File.Exists(firstFile))
+                {
+                    var msg1 = $"Arquivo n�o encontrado: {firstFile}";
+                    Console.WriteLine($"[UploadWorker] {msg1}");
+                    throw new FileNotFoundException(msg1, firstFile);
+                }
+                var fi1 = new FileInfo(firstFile);
+                if (fi1.Length <= 0)
+                {
+                    var msg2 = $"Arquivo vazio: {firstFile}";
+                    Console.WriteLine($"[UploadWorker] {msg2}");
+                    throw new Exception(msg2);
+                }
+                return true;
             }
 
             // Arquivo único
@@ -211,8 +240,9 @@ public class UploadWorker
             var fileInfo = new FileInfo(video.FilePath);
             if (fileInfo.Length == 0)
             {
-                Console.WriteLine($"[UploadWorker] Arquivo vazio: {video.FilePath}");
-                return false;
+                var msg = $"Arquivo vazio: {video.FilePath}";
+                Console.WriteLine($"[UploadWorker] {msg}");
+                throw new Exception(msg);
             }
 
             // TODO: Adicionar validação com ffprobe para verificar integridade
@@ -221,7 +251,7 @@ public class UploadWorker
         catch (Exception ex)
         {
             Console.WriteLine($"[UploadWorker] Erro ao validar arquivo: {ex.Message}");
-            return false;
+            throw;
         }
     }
 
@@ -273,3 +303,9 @@ public class UploadWorker
         Console.WriteLine("[UploadWorker] Reprocessando vídeos com erro...");
     }
 }
+
+
+
+
+
+
