@@ -6,7 +6,7 @@
 
 ## 🚀 Tecnologias
 
-- **Backend:** C# / .NET 10
+- **Backend:** C# / .NET 8
 - **Gravação:** FFmpeg + NAudio (WASAPI)
 - **Banco de Dados:** SQLite (Microsoft.Data.Sqlite)
 - **Upload:** HttpClient (Multipart/Form-Data)
@@ -98,7 +98,7 @@ dotnet build -c Release
 dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
 ```
 
-O executável estará em: `bin/Release/net10.0/win-x64/publish/Agent.exe`
+O executável estará em: `bin/Release/net8.0/win-x64/publish/Agent.exe`
 
 ## ▶️ Execução
 
@@ -291,7 +291,7 @@ cd Agent
 dotnet publish -c Release -r win-x64
 ```
 
-O executável estará em: `Agent/bin/Release/net10.0/win-x64/publish/Agent.exe`
+O executável estará em: `Agent/bin/Release/net8.0/win-x64/publish/Agent.exe`
 
 **Otimizações incluídas no Release:**
 - ✅ PublishSingleFile (arquivo único)
