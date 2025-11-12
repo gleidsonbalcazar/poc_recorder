@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 
 namespace Agent;
 
@@ -7,6 +8,7 @@ namespace Agent;
 /// </summary>
 public class FFmpegRecorder : IDisposable
 {
+    private readonly ILogger<FFmpegRecorder> _logger;
     private Process? _ffmpegProcess;
     private AudioManager? _audioManager;
     private bool _isRecording;
@@ -35,9 +37,10 @@ public class FFmpegRecorder : IDisposable
     public bool IsPeriodicRecordingActive => _periodicRecordingTask != null && !_periodicRecordingTask.IsCompleted;
     public string? CurrentRecordingPath => _isRecording ? _currentOutputPath : null;
 
-    public FFmpegRecorder(string storageBasePath)
+    public FFmpegRecorder(string storageBasePath, ILogger<FFmpegRecorder> logger)
     {
         _storageBasePath = storageBasePath;
+        _logger = logger;
 
         // Criar diretório de armazenamento se não existir
         if (!Directory.Exists(_storageBasePath))
@@ -46,9 +49,9 @@ public class FFmpegRecorder : IDisposable
         }
 
         // Garantir que FFmpeg está disponível (baixar automaticamente se necessário)
-        Console.WriteLine("[FFmpegRecorder] Verificando FFmpeg...");
+        _logger.LogInformation("[FFmpegRecorder] Verificando FFmpeg...");
         FFmpegHelper.EnsureFFmpegAvailable().Wait();
-        Console.WriteLine("[FFmpegRecorder] FFmpeg OK, pronto para gravar");
+        _logger.LogInformation("[FFmpegRecorder] FFmpeg OK, pronto para gravar");
     }
 
     /// <summary>
@@ -66,8 +69,8 @@ public class FFmpegRecorder : IDisposable
         try
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            Console.WriteLine($"[SYNC] ===== INICIANDO GRAVAÇÃO =====");
-            Console.WriteLine($"[SYNC] T+{sw.ElapsedMilliseconds}ms: Início do StartRecording()");
+            _logger.LogDebug("[SYNC] ===== INICIANDO GRAVAÇÃO =====");
+            _logger.LogDebug("[SYNC] T+{Elapsed}ms: Início do StartRecording()", sw.ElapsedMilliseconds);
 
             // Criar pasta da data
             string dateFolder = Path.Combine(_storageBasePath, "videos", DateTime.Now.ToString("yyyy-MM-dd"));
@@ -89,8 +92,8 @@ public class FFmpegRecorder : IDisposable
                 // Segmentação: usar pattern com strftime
                 _currentOutputPattern = Path.Combine(sessionFolder, "screen_%Y%m%d_%H%M%S.mp4");
                 _currentOutputPath = sessionFolder; // Diretório onde segmentos serão salvos
-                Console.WriteLine($"[FFmpegRecorder] Modo segmentação: {SegmentSeconds}s por arquivo");
-                Console.WriteLine($"[FFmpegRecorder] Pattern: {_currentOutputPattern}");
+                _logger.LogInformation("[FFmpegRecorder] Modo segmentação: {SegmentSeconds}s por arquivo", SegmentSeconds);
+                _logger.LogInformation("[FFmpegRecorder] Pattern: {OutputPattern}", _currentOutputPattern);
             }
             else
             {
@@ -99,17 +102,17 @@ public class FFmpegRecorder : IDisposable
                 string fileName = $"screen_{timestamp}.mp4";
                 _currentOutputPath = Path.Combine(sessionFolder, fileName);
                 _currentOutputPattern = null;
-                Console.WriteLine($"[FFmpegRecorder] Modo arquivo único: {_currentOutputPath}");
+                _logger.LogInformation("[FFmpegRecorder] Modo arquivo único: {OutputPath}", _currentOutputPath);
             }
 
             // [FASE 1] Iniciar AudioManager (captura áudio via NAudio)
             if (CaptureAudio)
             {
-                Console.WriteLine($"[SYNC] T+{sw.ElapsedMilliseconds}ms: Iniciando AudioManager...");
+                _logger.LogDebug("[SYNC] T+{ElapsedMs}ms: Iniciando AudioManager...", sw.ElapsedMilliseconds);
                 _audioManager = new AudioManager(PreferredMicName);
                 await _audioManager.StartAsync();
-                Console.WriteLine($"[SYNC] T+{sw.ElapsedMilliseconds}ms: ✓ AudioManager iniciado (pipe: {_audioManager.FullPipePath})");
-                Console.WriteLine($"[SYNC] ⚠️  ÁUDIO COMEÇOU A CAPTURAR (aguardando FFmpeg conectar...)");
+                _logger.LogDebug("[SYNC] T+{ElapsedMs}ms: ✓ AudioManager iniciado (pipe: {PipePath})", sw.ElapsedMilliseconds, _audioManager.FullPipePath);
+                _logger.LogDebug("[SYNC] ⚠️  ÁUDIO COMEÇOU A CAPTURAR (aguardando FFmpeg conectar...)");
             }
 
             // [FASE 2] Construir argumentos FFmpeg com Named Pipe
@@ -130,8 +133,8 @@ public class FFmpegRecorder : IDisposable
                 arguments = $"-t {durationSeconds} " + arguments;
             }
 
-            Console.WriteLine($"[SYNC] T+{sw.ElapsedMilliseconds}ms: Iniciando processo FFmpeg...");
-            Console.WriteLine($"[FFmpegRecorder] Comando: ffmpeg {arguments}");
+            _logger.LogDebug("[SYNC] T+{ElapsedMs}ms: Iniciando processo FFmpeg...", sw.ElapsedMilliseconds);
+            _logger.LogInformation("[FFmpegRecorder] Comando: ffmpeg {Arguments}", arguments);
 
             // [FASE 3] Iniciar processo FFmpeg
             var startInfo = new ProcessStartInfo
@@ -157,13 +160,13 @@ public class FFmpegRecorder : IDisposable
 
             if (_ffmpegJobObject == null)
             {
-                Console.WriteLine("[FFmpegRecorder] ⚠ Warning: Failed to assign FFmpeg to Job Object - process may become orphaned if Agent crashes");
+                _logger.LogInformation("[FFmpegRecorder] ⚠ Warning: Failed to assign FFmpeg to Job Object - process may become orphaned if Agent crashes");
             }
 
             _isRecording = true;
-            Console.WriteLine($"[SYNC] T+{sw.ElapsedMilliseconds}ms: ✓ Processo FFmpeg iniciado (PID: {_ffmpegProcess.Id})");
-            Console.WriteLine($"[SYNC] FFmpeg agora vai conectar ao pipe de áudio e iniciar captura de vídeo...");
-            Console.WriteLine($"[SYNC] ===== GRAVAÇÃO EM ANDAMENTO =====");
+            _logger.LogDebug("[SYNC] T+{ElapsedMs}ms: ✓ Processo FFmpeg iniciado (PID: {ProcessId})", sw.ElapsedMilliseconds, _ffmpegProcess.Id);
+            _logger.LogDebug("[SYNC] FFmpeg agora vai conectar ao pipe de áudio e iniciar captura de vídeo...");
+            _logger.LogDebug("[SYNC] ===== GRAVAÇÃO EM ANDAMENTO =====");
 
             // Monitorar stderr do FFmpeg em background
             _ = Task.Run(() => MonitorFFmpegOutput(_ffmpegProcess));
@@ -185,7 +188,7 @@ public class FFmpegRecorder : IDisposable
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[FFmpegRecorder] Erro ao iniciar gravação: {ex.Message}");
+            _logger.LogError("[FFmpegRecorder] Erro ao iniciar gravação: {Message}", ex.Message);
             _isRecording = false;
 
             // Cleanup em caso de erro
@@ -211,7 +214,7 @@ public class FFmpegRecorder : IDisposable
 
         try
         {
-            Console.WriteLine("[FFmpegRecorder] Parando gravação...");
+            _logger.LogInformation("[FFmpegRecorder] Parando gravação...");
 
             // Enviar 'q' para FFmpeg terminar gracefully
             try
@@ -226,7 +229,7 @@ public class FFmpegRecorder : IDisposable
 
                     if (!exited)
                     {
-                        Console.WriteLine("[FFmpegRecorder] FFmpeg não terminou gracefully, forçando kill");
+                        _logger.LogInformation("[FFmpegRecorder] FFmpeg não terminou gracefully, forçando kill");
                         _ffmpegProcess.Kill();
                         _ffmpegProcess.WaitForExit(); // Aguardar kill completar
                     }
@@ -235,21 +238,21 @@ public class FFmpegRecorder : IDisposable
             catch (InvalidOperationException ex)
             {
                 // Pode ocorrer se processo já terminou ou StandardInput não disponível
-                Console.WriteLine($"[FFmpegRecorder] Aviso ao enviar 'q': {ex.Message}");
+                _logger.LogWarning("[FFmpegRecorder] Aviso ao enviar 'q': {Message}", ex.Message);
 
                 // Tentar kill como fallback
                 try
                 {
                     if (_ffmpegProcess != null && !_ffmpegProcess.HasExited)
                     {
-                        Console.WriteLine("[FFmpegRecorder] Forçando kill como fallback...");
+                        _logger.LogInformation("[FFmpegRecorder] Forçando kill como fallback...");
                         _ffmpegProcess.Kill();
                         _ffmpegProcess.WaitForExit();
                     }
                 }
                 catch (Exception killEx)
                 {
-                    Console.WriteLine($"[FFmpegRecorder] Erro ao tentar kill: {killEx.Message}");
+                    _logger.LogWarning("[FFmpegRecorder] Erro ao tentar kill: {Message}", killEx.Message);
                 }
             }
 
@@ -258,22 +261,22 @@ public class FFmpegRecorder : IDisposable
             // Parar AudioManager
             if (_audioManager != null)
             {
-                Console.WriteLine("[FFmpegRecorder] Parando AudioManager...");
+                _logger.LogInformation("[FFmpegRecorder] Parando AudioManager...");
                 try
                 {
                     await _audioManager.StopAsync();
                     await _audioManager.DisposeAsync();
                     _audioManager = null;
-                    Console.WriteLine("[FFmpegRecorder] ✓ AudioManager parado");
+                    _logger.LogInformation("[FFmpegRecorder] ✓ AudioManager parado");
                 }
                 catch (Exception audioEx)
                 {
-                    Console.WriteLine($"[FFmpegRecorder] Erro ao parar AudioManager: {audioEx.Message}");
+                    _logger.LogWarning("[FFmpegRecorder] Erro ao parar AudioManager: {Message}", audioEx.Message);
                 }
             }
 
             // Aguardar um pouco para garantir que o arquivo foi finalizado
-            Console.WriteLine("[FFmpegRecorder] Aguardando finalização do arquivo...");
+            _logger.LogInformation("[FFmpegRecorder] Aguardando finalização do arquivo...");
             await Task.Delay(2000);
 
             string outputPath = _currentOutputPath ?? "unknown";
@@ -289,21 +292,21 @@ public class FFmpegRecorder : IDisposable
             // Com segmentação, não precisa verificar acesso (segmentos já foram finalizados)
             if (SegmentSeconds > 0)
             {
-                Console.WriteLine($"[FFmpegRecorder] ✓ Gravação parada (segmentos em: {outputPath})");
+                _logger.LogInformation("[FFmpegRecorder] ✓ Gravação parada (segmentos em: {OutputPath})", outputPath);
             }
             else
             {
                 // Verificar se arquivo está acessível
-                Console.WriteLine("[FFmpegRecorder] Verificando acesso ao arquivo...");
+                _logger.LogInformation("[FFmpegRecorder] Verificando acesso ao arquivo...");
                 bool fileAccessible = await WaitForFileAccess(outputPath, maxRetries: 10, delayMs: 500);
 
                 if (fileAccessible)
                 {
-                    Console.WriteLine($"[FFmpegRecorder] ✓ Gravação parada: {outputPath}");
+                    _logger.LogInformation("[FFmpegRecorder] ✓ Gravação parada: {OutputPath}", outputPath);
                 }
                 else
                 {
-                    Console.WriteLine($"[FFmpegRecorder] ⚠️  Gravação parada mas arquivo pode estar travado: {outputPath}");
+                    _logger.LogWarning("[FFmpegRecorder] ⚠️  Gravação parada mas arquivo pode estar travado: {OutputPath}", outputPath);
                 }
             }
 
@@ -311,7 +314,7 @@ public class FFmpegRecorder : IDisposable
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[FFmpegRecorder] Erro ao parar gravação: {ex.Message}");
+            _logger.LogError("[FFmpegRecorder] Erro ao parar gravação: {Message}", ex.Message);
             _isRecording = false;
             throw;
         }
@@ -330,7 +333,7 @@ public class FFmpegRecorder : IDisposable
         _periodicRecordingCts = new CancellationTokenSource();
         _periodicRecordingTask = Task.Run(async () => await PeriodicRecordingLoop(_periodicRecordingCts.Token));
 
-        Console.WriteLine($"[FFmpegRecorder] Gravação periódica iniciada: {PeriodicDurationMinutes}min a cada {PeriodicIntervalMinutes}min");
+        _logger.LogInformation("[FFmpegRecorder] Gravação periódica iniciada: {Duration}min a cada {Interval}min", PeriodicDurationMinutes, PeriodicIntervalMinutes);
     }
 
     /// <summary>
@@ -361,7 +364,7 @@ public class FFmpegRecorder : IDisposable
         _periodicRecordingCts = null;
         _periodicRecordingTask = null;
 
-        Console.WriteLine("[FFmpegRecorder] Gravação periódica parada");
+        _logger.LogInformation("[FFmpegRecorder] Gravação periódica parada");
     }
 
     /// <summary>
@@ -399,7 +402,7 @@ public class FFmpegRecorder : IDisposable
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[FFmpegRecorder] Erro na gravação periódica: {ex.Message}");
+                _logger.LogError("[FFmpegRecorder] Erro na gravação periódica: {Message}", ex.Message);
                 // Aguardar um pouco antes de tentar novamente
                 await Task.Delay(5000, ct);
             }
@@ -418,19 +421,19 @@ public class FFmpegRecorder : IDisposable
                 string? line = await process.StandardError.ReadLineAsync();
                 if (line != null && (line.Contains("error") || line.Contains("Error") || line.Contains("ERROR")))
                 {
-                    Console.WriteLine($"[FFmpegRecorder] FFmpeg error: {line}");
+                    _logger.LogWarning("[FFmpegRecorder] FFmpeg error: {Line}", line);
                 }
             }
 
             int exitCode = process.ExitCode;
             if (exitCode != 0)
             {
-                Console.WriteLine($"[FFmpegRecorder] FFmpeg terminou com código: {exitCode}");
+                _logger.LogWarning("[FFmpegRecorder] FFmpeg terminou com código: {ExitCode}", exitCode);
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[FFmpegRecorder] Erro ao monitorar FFmpeg: {ex.Message}");
+            _logger.LogError("[FFmpegRecorder] Erro ao monitorar FFmpeg: {Message}", ex.Message);
         }
     }
 
@@ -460,7 +463,7 @@ public class FFmpegRecorder : IDisposable
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[FFmpegRecorder] Erro ao obter info do vídeo: {ex.Message}");
+            _logger.LogError("[FFmpegRecorder] Erro ao obter info do vídeo: {Message}", ex.Message);
             return null;
         }
     }
@@ -495,7 +498,7 @@ public class FFmpegRecorder : IDisposable
                 using (var fs = File.OpenRead(filePath))
                 {
                     // Se chegou aqui, arquivo está acessível
-                    Console.WriteLine($"[FFmpegRecorder] Arquivo acessível após {i + 1} tentativa(s)");
+                    _logger.LogInformation("[FFmpegRecorder] Arquivo acessível após {Attempts} tentativa(s)", i + 1);
                     return true;
                 }
             }
@@ -504,19 +507,19 @@ public class FFmpegRecorder : IDisposable
                 // Arquivo ainda está travado
                 if (i < maxRetries - 1)
                 {
-                    Console.WriteLine($"[FFmpegRecorder] Arquivo ainda travado, tentativa {i + 1}/{maxRetries}...");
+                    _logger.LogDebug("[FFmpegRecorder] Arquivo ainda travado, tentativa {Attempt}/{MaxRetries}...", i + 1, maxRetries);
                     await Task.Delay(delayMs);
                 }
             }
             catch (Exception ex)
             {
                 // Outro tipo de erro (arquivo não existe, permissões, etc)
-                Console.WriteLine($"[FFmpegRecorder] Erro ao verificar acesso ao arquivo: {ex.Message}");
+                _logger.LogError("[FFmpegRecorder] Erro ao verificar acesso ao arquivo: {Message}", ex.Message);
                 return false;
             }
         }
 
-        Console.WriteLine($"[FFmpegRecorder] ⚠️  Arquivo ainda pode estar travado após {maxRetries} tentativas");
+        _logger.LogWarning("[FFmpegRecorder] ⚠️  Arquivo ainda pode estar travado após {MaxRetries} tentativas", maxRetries);
         return false;
     }
 

@@ -2,6 +2,9 @@ using Agent;
 using Agent.Models;
 using Agent.Database;
 using Agent.Workers;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
+using Serilog.Extensions.Logging.File;
 
 namespace AgentApp
 {
@@ -9,16 +12,45 @@ namespace AgentApp
     {
         static async Task Main(string[] args)
         {
-            Console.WriteLine("╔═══════════════════════════════════════════╗");
-            Console.WriteLine("║  Paneas Monitor - C2 & Autonomous Agent  ║");
-            Console.WriteLine("║  POC - Sistema de Monitoramento           ║");
-            Console.WriteLine("╚═══════════════════════════════════════════╝");
-            Console.WriteLine();
-
-            // Load configuration from appsettings.json
+            // Load configuration from appsettings.json FIRST
             var appConfig = ConfigManager.LoadFromFile();
-            Console.WriteLine($"Mode: {appConfig.Mode}");
-            Console.WriteLine();
+
+            // Apply recording profile (Performance, Balanced, Quality)
+            appConfig.Recording.ApplyProfile();
+
+            // Define storage path early (needed for logging)
+            string storageBasePath = string.IsNullOrEmpty(appConfig.Storage.BasePath)
+                ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PaneasMonitor")
+                : appConfig.Storage.BasePath;
+
+            // Setup logging
+            var logDirectory = Path.Combine(storageBasePath, "logs");
+            Directory.CreateDirectory(logDirectory);
+            var logFilePath = Path.Combine(logDirectory, $"agent-{DateTime.Now:yyyyMMdd-HHmmss}.log");
+
+            var loggerFactory = LoggerFactory.Create(builder =>
+            {
+                // Read logging config from appsettings (use app directory, works for both regular and single-file apps)
+                var appDirectory = AppContext.BaseDirectory;
+                var configBuilder = new ConfigurationBuilder()
+                    .SetBasePath(appDirectory)
+                    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: false);
+                var configuration = configBuilder.Build();
+
+                builder.AddConfiguration(configuration.GetSection("Logging"));
+                builder.AddConsole();
+                builder.AddFile(logFilePath, minimumLevel: LogLevel.Information);
+            });
+
+            var logger = loggerFactory.CreateLogger<Program>();
+
+            logger.LogInformation("╔═══════════════════════════════════════════╗");
+            logger.LogInformation("║  Paneas Monitor - C2 & Autonomous Agent  ║");
+            logger.LogInformation("║  POC - Sistema de Monitoramento           ║");
+            logger.LogInformation("╚═══════════════════════════════════════════╝");
+            logger.LogInformation("");
+            logger.LogInformation("Mode: {Mode}", appConfig.Mode);
+            logger.LogInformation("");
 
             // Legacy C2 Configuration
             var config = new AgentConfig
@@ -30,45 +62,41 @@ namespace AgentApp
                 MaxReconnectAttempts = -1 // Infinite
             };
 
-            Console.WriteLine($"Agent ID: {config.AgentId}");
-            Console.WriteLine($"Hostname: {config.Hostname}");
+            logger.LogInformation("Agent ID: {AgentId}", config.AgentId);
+            logger.LogInformation("Hostname: {Hostname}", config.Hostname);
             if (appConfig.C2.Enabled)
             {
-                Console.WriteLine($"Server URL: {config.ServerUrl}");
+                logger.LogInformation("Server URL: {ServerUrl}", config.ServerUrl);
             }
-            Console.WriteLine();
+            logger.LogInformation("");
 
-            // Define storage path for media files
-            string storageBasePath = string.IsNullOrEmpty(appConfig.Storage.BasePath)
-                ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "C2Agent")
-                : appConfig.Storage.BasePath;
-
-            Console.WriteLine($"Storage Path: {storageBasePath}");
-            Console.WriteLine();
+            logger.LogInformation("Storage Path: {StoragePath}", storageBasePath);
+            logger.LogInformation("");
 
             // Initialize database
             string dbPath = Path.Combine(storageBasePath, appConfig.Database.Path);
             var database = new DatabaseManager(dbPath);
-            Console.WriteLine($"Database: {dbPath}");
-            Console.WriteLine();
+            logger.LogInformation("Database: {DbPath}", dbPath);
+            logger.LogInformation("");
 
             // Show queue stats
             var stats = database.GetQueueStats();
-            Console.WriteLine("Queue Stats:");
+            logger.LogInformation("Queue Stats:");
             foreach (var stat in stats)
             {
-                Console.WriteLine($"  {stat.Key}: {stat.Value}");
+                logger.LogInformation("  {Key}: {Value}", stat.Key, stat.Value);
             }
-            Console.WriteLine();
+            logger.LogInformation("");
 
             // Kill orphaned FFmpeg processes from previous runs
             ProcessCleanup.KillOrphanedFFmpegProcesses();
-            Console.WriteLine();
+            logger.LogInformation("");
 
             // Create executor and SSE client
             var executor = new CommandExecutor(
                 agentId: config.AgentId,
                 storageBasePath: storageBasePath,
+                loggerFactory: loggerFactory,
                 commandTimeoutMs: 60000
             );
 
@@ -81,7 +109,7 @@ namespace AgentApp
             SseClient? sseClient = null;
             if (appConfig.C2.Enabled)
             {
-                sseClient = new SseClient(config, executor);
+                sseClient = new SseClient(config, executor, loggerFactory.CreateLogger<SseClient>());
             }
 
             // Initialize Workers (Autonomous mode)
@@ -90,10 +118,13 @@ namespace AgentApp
 
             if (appConfig.Mode == "autonomous" || appConfig.Mode == "hybrid")
             {
-                Console.WriteLine("[Workers] Initializing autonomous workers...");
+                logger.LogInformation("[Workers] Initializing autonomous workers...");
 
                 // Recorder Worker
-                recorderWorker = new VideoRecorderWorker(executor.VideoRecorder, database)
+                recorderWorker = new VideoRecorderWorker(
+                    executor.VideoRecorder,
+                    database,
+                    loggerFactory.CreateLogger<VideoRecorderWorker>())
                 {
                     ContinuousMode = appConfig.Recording.Continuous,
                     RecordingIntervalMinutes = appConfig.Recording.IntervalMinutes,
@@ -103,7 +134,9 @@ namespace AgentApp
                 // Upload Worker
                 if (appConfig.Upload.Enabled)
                 {
-                    uploadWorker = new UploadWorker(database)
+                    uploadWorker = new UploadWorker(
+                        database,
+                        loggerFactory.CreateLogger<UploadWorker>())
                     {
                         PollIntervalSeconds = appConfig.Upload.PollIntervalSeconds,
                         MaxConcurrentUploads = appConfig.Upload.MaxConcurrentUploads,
@@ -116,42 +149,59 @@ namespace AgentApp
                     };
                 }
 
-                Console.WriteLine("[Workers] Workers initialized");
-                Console.WriteLine();
+                logger.LogInformation("[Workers] Workers initialized");
+                logger.LogInformation("");
             }
 
-            // Start HTTP server for media preview (with recorder reference to prevent locked file access)
+            // Create ConfigurationManager for hot-reload support
+            var configPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+            var configManager = new Agent.ConfigurationManager(
+                configPath,
+                loggerFactory.CreateLogger<Agent.ConfigurationManager>()
+            );
+
+            // Register workers with ConfigurationManager for hot-reload
+            configManager.RegisterComponents(
+                recorderWorker: recorderWorker,
+                uploadWorker: uploadWorker,
+                sseClient: sseClient
+            );
+
+            // Start HTTP server with Web UI support
             var httpServer = new MediaHttpServer(
                 storageBasePath,
                 port: 9000,
-                videoRecorder: executor.VideoRecorder
+                videoRecorder: executor.VideoRecorder,
+                logger: loggerFactory.CreateLogger<MediaHttpServer>(),
+                configManager: configManager,
+                recorderWorker: recorderWorker,
+                uploadWorker: uploadWorker,
+                database: database,
+                webUIPassword: appConfig.WebUI.Password
             );
             try
             {
                 httpServer.Start();
+                logger.LogInformation("");
+                logger.LogInformation("Web UI: http://localhost:9000/config");
+                logger.LogInformation("  Username: (any)");
+                logger.LogInformation("  Password: {Password}", appConfig.WebUI.Password);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Warning: Could not start HTTP server: {ex.Message}");
-                Console.WriteLine("Preview functionality will not be available.");
+                logger.LogWarning("Warning: Could not start HTTP server: {Message}", ex.Message);
+                logger.LogWarning("Preview and Web UI will not be available.");
             }
 
-            // Subscribe to log events (C2 mode)
-            if (sseClient != null)
-            {
-                sseClient.OnLog += (sender, message) =>
-                {
-                    Console.WriteLine(message);
-                };
-            }
+            // SseClient now logs directly using ILogger
 
             // Handle Ctrl+C gracefully
             var cts = new CancellationTokenSource();
             Console.CancelKeyPress += (sender, e) =>
             {
                 e.Cancel = true;
-                Console.WriteLine();
-                Console.WriteLine("Encerrando agente...");
+                logger.LogInformation("");
+                logger.LogInformation("Encerrando agente...");
                 cts.Cancel();
             };
 
@@ -166,10 +216,10 @@ namespace AgentApp
                 uploadWorker.Start();
             }
 
-            Console.WriteLine("═══════════════════════════════════════════");
-            Console.WriteLine("  Agent running. Press Ctrl+C to stop.");
-            Console.WriteLine("═══════════════════════════════════════════");
-            Console.WriteLine();
+            logger.LogInformation("═══════════════════════════════════════════");
+            logger.LogInformation("  Agent running. Press Ctrl+C to stop.");
+            logger.LogInformation("═══════════════════════════════════════════");
+            logger.LogInformation("");
 
             // Main loop with reconnect logic (C2 mode)
             if (appConfig.C2.Enabled && sseClient != null)
@@ -184,14 +234,14 @@ namespace AgentApp
 
                         if (reconnectAttempt > 1)
                         {
-                            Console.WriteLine($"Tentativa de reconexão #{reconnectAttempt}...");
+                            logger.LogInformation("Tentativa de reconexão #{ReconnectAttempt}...", reconnectAttempt);
                             await Task.Delay(config.ReconnectDelayMs, cts.Token);
                         }
 
                         await sseClient.ConnectAsync(cts.Token);
 
                         // If we reach here, connection was closed gracefully
-                        Console.WriteLine("Conexão encerrada pelo servidor");
+                        logger.LogInformation("Conexão encerrada pelo servidor");
                     }
                     catch (OperationCanceledException)
                     {
@@ -200,11 +250,11 @@ namespace AgentApp
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Erro de conexão: {ex.Message}");
+                        logger.LogError("Erro de conexão: {Message}", ex.Message);
 
                         if (config.MaxReconnectAttempts > 0 && reconnectAttempt >= config.MaxReconnectAttempts)
                         {
-                            Console.WriteLine($"Máximo de tentativas ({config.MaxReconnectAttempts}) atingido. Encerrando...");
+                            logger.LogError("Máximo de tentativas ({MaxAttempts}) atingido. Encerrando...", config.MaxReconnectAttempts);
                             break;
                         }
                     }
@@ -217,8 +267,8 @@ namespace AgentApp
             }
 
             // Cleanup resources
-            Console.WriteLine();
-            Console.WriteLine("Stopping workers...");
+            logger.LogInformation("");
+            logger.LogInformation("Stopping workers...");
 
             if (recorderWorker != null)
             {
@@ -234,17 +284,20 @@ namespace AgentApp
             executor.Dispose();
             database.Dispose();
 
-            Console.WriteLine();
-            Console.WriteLine("Agente encerrado.");
+            logger.LogInformation("");
+            logger.LogInformation("Agente encerrado.");
+
+            loggerFactory.Dispose();
         }
 
         /// <summary>
-        /// Generate agent ID based on hostname
+        /// Generate agent ID based on hostname and username
         /// </summary>
         static string GenerateAgentId()
         {
             var hostname = Environment.MachineName.ToLowerInvariant();
-            return hostname;
+            var username = Environment.UserName.ToLowerInvariant();
+            return $"{hostname}-{username}";
         }
 
         /// <summary>
