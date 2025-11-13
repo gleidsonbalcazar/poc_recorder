@@ -26,10 +26,10 @@ public class MonitorService : BackgroundService
         // Load configuration
         _monitorIntervalSeconds = configuration.GetValue<int>("Service:MonitorIntervalSeconds", 10);
         _agentExecutablePath = configuration.GetValue<string>("Service:AgentExecutablePath")
-            ?? "C:\\Program Files\\Paneas Monitor\\bin\\Agent.exe";
+            ?? "C:\\Program Files\\Paneas Monitor\\Agent\\bin\\Agent.exe";
         _taskName = configuration.GetValue<string>("Service:TaskName") ?? "PaneasMonitorTask";
         _taskXmlPath = configuration.GetValue<string>("Service:TaskXmlPath")
-            ?? "C:\\Program Files\\Paneas Monitor\\config\\task-definition.xml";
+            ?? "C:\\Program Files\\Paneas Monitor\\Agent\\config\\task-definition.xml";
     }
 
     protected override async SystemTask ExecuteAsync(CancellationToken stoppingToken)
@@ -161,8 +161,9 @@ public class MonitorService : BackgroundService
             // Trigger: When any user logs on
             td.Triggers.Add(new LogonTrigger());
 
-            // Action: Run Agent.exe
-            td.Actions.Add(new ExecAction(_agentExecutablePath, null, Path.GetDirectoryName(_agentExecutablePath)));
+            // Action: Run Agent.exe (with WorkingDirectory set to Agent's directory)
+            var agentDirectory = Path.GetDirectoryName(_agentExecutablePath) ?? "";
+            td.Actions.Add(new ExecAction(_agentExecutablePath, arguments: null, workingDirectory: agentDirectory));
 
             // Settings
             td.Settings.DisallowStartIfOnBatteries = false;
@@ -175,9 +176,10 @@ public class MonitorService : BackgroundService
             td.Settings.Enabled = true;
 
             // Principal: Run in user's session when they log on
-            // Use INTERACTIVE group (SID: S-1-5-4) for universal compatibility across all Windows languages
-            // INTERACTIVE = currently logged-in user with active desktop session (perfect for screen recording)
-            td.Principal.GroupId = "INTERACTIVE";
+            // Use INTERACTIVE group SID (S-1-5-4) directly for universal compatibility across all Windows languages
+            // S-1-5-4 = currently logged-in user with active desktop session (perfect for screen recording)
+            // Using SID instead of "INTERACTIVE" string to avoid localization issues (ERROR_NONE_MAPPED)
+            td.Principal.GroupId = "S-1-5-4";
             td.Principal.LogonType = TaskLogonType.Group;
             td.Principal.RunLevel = TaskRunLevel.Highest;
 
@@ -186,7 +188,7 @@ public class MonitorService : BackgroundService
                 _taskName,
                 td,
                 TaskCreation.CreateOrUpdate,
-                "INTERACTIVE", // Group name
+                "S-1-5-4", // INTERACTIVE group SID (universal)
                 null, // No password
                 TaskLogonType.Group);
 

@@ -50,6 +50,22 @@ namespace AgentApp
             logger.LogInformation("║  POC - Sistema de Monitoramento           ║");
             logger.LogInformation("╚═══════════════════════════════════════════╝");
             logger.LogInformation("");
+
+            // DEBUG: Log configuration loading details
+            logger.LogInformation("==================== CONFIG DEBUG ====================");
+            logger.LogInformation("Current Directory: {CurrentDir}", Directory.GetCurrentDirectory());
+            logger.LogInformation("AppContext.BaseDirectory: {BaseDir}", AppContext.BaseDirectory);
+            logger.LogInformation("appsettings.json path: appsettings.json (relative)");
+            logger.LogInformation("appsettings.json exists in BaseDir: {Exists}",
+                File.Exists(Path.Combine(AppContext.BaseDirectory, "appsettings.json")));
+            logger.LogInformation("appsettings.json exists in CurrentDir: {Exists}",
+                File.Exists(Path.Combine(Directory.GetCurrentDirectory(), "appsettings.json")));
+            logger.LogInformation("Config loaded - C2.ServerUrl: {ServerUrl}", appConfig.C2.ServerUrl);
+            logger.LogInformation("Config loaded - Upload.Endpoint: {Endpoint}", appConfig.Upload.Endpoint);
+            logger.LogInformation("Config loaded - Tus.TusServerUrl: {TusUrl}", appConfig.Tus.TusServerUrl);
+            logger.LogInformation("======================================================");
+            logger.LogInformation("");
+
             logger.LogInformation("Mode: {Mode}", appConfig.Mode);
             logger.LogInformation("");
 

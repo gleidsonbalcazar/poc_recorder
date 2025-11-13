@@ -19,7 +19,14 @@
     <!-- Custom Actions for Task Scheduler -->
     <CustomAction Id="CreateScheduledTask"
                   Directory="SystemFolder"
-                  ExeCommand='schtasks.exe /Create /F /SC ONLOGON /TN "PaneasMonitorTask" /TR "\"[BinFolder]Agent.exe\"" /RL HIGHEST /RU "INTERACTIVE"'
+                  ExeCommand='schtasks.exe /Create /F /SC ONLOGON /TN "PaneasMonitorTask" /TR "\"[BinFolder]Agent.exe\"" /RL HIGHEST'
+                  Execute="deferred"
+                  Impersonate="no"
+                  Return="ignore" />
+
+    <CustomAction Id="KillAgentProcess"
+                  Directory="SystemFolder"
+                  ExeCommand='taskkill.exe /F /IM Agent.exe'
                   Execute="deferred"
                   Impersonate="no"
                   Return="ignore" />
@@ -35,8 +42,10 @@
     <InstallExecuteSequence>
       <!-- Create task after service is installed -->
       <Custom Action="CreateScheduledTask" After="InstallServices" Condition="NOT Installed AND NOT REMOVE" />
+      <!-- Kill Agent.exe process before deleting task -->
+      <Custom Action="KillAgentProcess" Before="DeleteScheduledTask" Condition="Installed AND (REMOVE~=&quot;ALL&quot;)" />
       <!-- Delete task before service is removed -->
-      <Custom Action="DeleteScheduledTask" Before="DeleteServices" Condition="REMOVE=&quot;ALL&quot;" />
+      <Custom Action="DeleteScheduledTask" Before="DeleteServices" Condition="Installed AND (REMOVE~=&quot;ALL&quot;)" />
     </InstallExecuteSequence>
 
   </Fragment>
