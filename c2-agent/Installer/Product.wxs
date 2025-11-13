@@ -9,6 +9,7 @@
            Manufacturer="!(loc.Manufacturer)"
            UpgradeCode="A1B2C3D4-E5F6-4A5B-9C8D-7E6F5A4B3C2D"
            InstallerVersion="500"
+           Platform="x64"
            Compressed="yes"
            Scope="perMachine">
 
