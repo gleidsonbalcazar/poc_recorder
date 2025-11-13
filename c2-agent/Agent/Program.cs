@@ -10,6 +10,7 @@ namespace AgentApp
 {
     class Program
     {
+        [STAThread]
         static async Task Main(string[] args)
         {
             // Load configuration from appsettings.json FIRST
