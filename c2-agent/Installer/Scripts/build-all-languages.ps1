@@ -4,6 +4,7 @@
 param(
     [switch]$Clean,
     [switch]$SkipBuild,
+    [switch]$NoIncrement,
     [string]$Configuration = "Release"
 )
 
@@ -15,8 +16,49 @@ $installerDir = Split-Path $scriptDir -Parent
 $rootDir = Split-Path $installerDir -Parent
 $outputDir = Join-Path $installerDir "bin\$Configuration"
 
+# Function to get and increment version
+function Get-NextVersion {
+    param([bool]$Increment = $true)
+
+    $versionFile = Join-Path $installerDir "version.txt"
+
+    if (-not (Test-Path $versionFile)) {
+        "1.0.0" | Out-File -FilePath $versionFile -Encoding UTF8 -NoNewline
+    }
+
+    $currentVersion = Get-Content $versionFile -Raw
+    $currentVersion = $currentVersion.Trim()
+
+    if ($Increment) {
+        # Parse version (MAJOR.MINOR.PATCH)
+        if ($currentVersion -match '^(\d+)\.(\d+)\.(\d+)$') {
+            $major = [int]$matches[1]
+            $minor = [int]$matches[2]
+            $patch = [int]$matches[3]
+
+            # Increment patch
+            $patch++
+
+            $newVersion = "$major.$minor.$patch"
+            $newVersion | Out-File -FilePath $versionFile -Encoding UTF8 -NoNewline
+
+            return $newVersion
+        } else {
+            Write-Host "WARNING: Invalid version format in version.txt. Using 1.0.0" -ForegroundColor Yellow
+            "1.0.0" | Out-File -FilePath $versionFile -Encoding UTF8 -NoNewline
+            return "1.0.0"
+        }
+    } else {
+        return $currentVersion
+    }
+}
+
+# Get version (increment unless -NoIncrement is specified)
+$version = Get-NextVersion -Increment (-not $NoIncrement)
+
 Write-Host "=======================================" -ForegroundColor Cyan
 Write-Host " Paneas C2 Agent - MSI Build Script" -ForegroundColor Cyan
+Write-Host " Version: $version" -ForegroundColor Cyan
 Write-Host "=======================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -96,8 +138,8 @@ $builtMSIs = @()
 foreach ($lang in $languages) {
     Write-Host "  Building $lang installer..." -ForegroundColor Cyan
 
-    # Output MSI name
-    $msiName = "PaneasC2Agent-1.0.0-$lang.msi"
+    # Output MSI name (includes version)
+    $msiName = "PaneasC2Agent-$version-$lang.msi"
     $msiPath = Join-Path $outputDir $msiName
 
     # WiX build command
@@ -118,15 +160,16 @@ foreach ($lang in $languages) {
     $locFile = Join-Path $installerDir "Localization\Product_$lang.wxl"
 
     try {
-        # Build MSI
+        # Build MSI with version variable
         & wix build $wxsArgs `
+            -arch x64 `
             -ext WixToolset.UI.wixext `
             -ext WixToolset.Util.wixext `
             -culture $lang `
             -loc $locFile `
             -d "ProjectDir=$installerDir" `
-            -out $msiPath `
-            2>&1 | Out-Null
+            -d "ProductVersion=$version" `
+            -out $msiPath
 
         if ($LASTEXITCODE -eq 0) {
             Write-Host "  [OK] Built: $msiName" -ForegroundColor Green
