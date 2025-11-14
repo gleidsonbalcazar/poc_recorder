@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using Agent.Models;
+using Microsoft.Extensions.Logging;
 
 namespace Agent
 {
@@ -9,6 +10,7 @@ namespace Agent
     /// </summary>
     public class SseClient
     {
+        private readonly ILogger<SseClient> _logger;
         private readonly HttpClient _httpClient;
         private readonly AgentConfig _config;
         private readonly CommandExecutor _executor;
@@ -16,8 +18,9 @@ namespace Agent
 
         public event EventHandler<string>? OnLog;
 
-        public SseClient(AgentConfig config, CommandExecutor executor)
+        public SseClient(AgentConfig config, CommandExecutor executor, ILogger<SseClient> logger)
         {
+            _logger = logger;
             _config = config;
             _executor = executor;
             _httpClient = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
@@ -210,9 +213,8 @@ namespace Agent
         /// </summary>
         private void Log(string message)
         {
-            var timestamp = DateTime.Now.ToString("HH:mm:ss");
-            var logMessage = $"[{timestamp}] {message}";
-            OnLog?.Invoke(this, logMessage);
+            // Use ILogger for file/console output
+            _logger.LogInformation("{Message}", message);
         }
     }
 }

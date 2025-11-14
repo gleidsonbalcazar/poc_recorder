@@ -24,9 +24,14 @@ builder.Logging.AddEventLog(settings =>
 });
 
 // Add file logging
-var logDirectory = Path.Combine("C:\\ProgramData\\C2Agent\\logs");
+var logDirectory = Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+    "PaneasMonitor",
+    "Service",
+    "logs"
+);
 Directory.CreateDirectory(logDirectory);
-var logFilePath = Path.Combine(logDirectory, $"console-{DateTime.Now:yyyyMMdd}.log");
+var logFilePath = Path.Combine(logDirectory, $"service-{DateTime.Now:yyyyMMdd}.log");
 builder.Logging.AddFile(logFilePath);
 
 var host = builder.Build();

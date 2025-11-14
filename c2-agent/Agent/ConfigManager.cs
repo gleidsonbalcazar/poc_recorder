@@ -30,23 +30,66 @@ public class ConfigManager
     {
         try
         {
-            if (!File.Exists(path))
+            // If path is relative, try to find it in AppContext.BaseDirectory first
+            string resolvedPath = path;
+
+            if (!Path.IsPathRooted(path))
             {
-                Console.WriteLine($"[ConfigManager] Arquivo não encontrado: {path}, usando valores padrão");
+                // Try AppContext.BaseDirectory first (where the .exe is)
+                var baseDir = AppContext.BaseDirectory;
+                var baseDirPath = Path.Combine(baseDir, path);
+
+                if (File.Exists(baseDirPath))
+                {
+                    resolvedPath = baseDirPath;
+                }
+                // Otherwise fall back to CurrentDirectory
+                else if (!File.Exists(path))
+                {
+                    Console.WriteLine($"[ConfigManager] ❌ Arquivo não encontrado em:");
+                    Console.WriteLine($"[ConfigManager]   - BaseDirectory: {baseDirPath}");
+                    Console.WriteLine($"[ConfigManager]   - CurrentDirectory: {Path.GetFullPath(path)}");
+                    Console.WriteLine($"[ConfigManager] ⚠️ Usando valores padrão (ServerUrl = http://localhost:8000)");
+                    return new ConfigManager();
+                }
+            }
+            else if (!File.Exists(path))
+            {
+                Console.WriteLine($"[ConfigManager] ❌ Arquivo não encontrado: {path}");
+                Console.WriteLine($"[ConfigManager] ⚠️ Usando valores padrão (ServerUrl = http://localhost:8000)");
                 return new ConfigManager();
             }
 
-            var json = File.ReadAllText(path);
+            var json = File.ReadAllText(resolvedPath);
+            Console.WriteLine($"[ConfigManager] ✓ Arquivo lido com sucesso de: {resolvedPath}");
+
             var config = JsonSerializer.Deserialize<ConfigManager>(json, new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
             });
 
+            if (config != null)
+            {
+                Console.WriteLine($"[ConfigManager] ✓ Configuração deserializada:");
+                Console.WriteLine($"[ConfigManager]   - Mode: {config.Mode}");
+                Console.WriteLine($"[ConfigManager]   - C2.ServerUrl: {config.C2.ServerUrl}");
+                Console.WriteLine($"[ConfigManager]   - Upload.Endpoint: {config.Upload.Endpoint}");
+                Console.WriteLine($"[ConfigManager]   - Tus.TusServerUrl: {config.Tus.TusServerUrl}");
+            }
+            else
+            {
+                Console.WriteLine($"[ConfigManager] ⚠️ Deserialização retornou null, usando valores padrão");
+            }
+
+            Console.WriteLine($"[ConfigManager] ========================================");
             return config ?? new ConfigManager();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ConfigManager] Erro ao carregar configuração: {ex.Message}");
+            Console.WriteLine($"[ConfigManager] ❌ Erro ao carregar configuração: {ex.Message}");
+            Console.WriteLine($"[ConfigManager] Stack trace: {ex.StackTrace}");
+            Console.WriteLine($"[ConfigManager] ⚠️ Usando valores padrão (ServerUrl = http://localhost:8000)");
+            Console.WriteLine($"[ConfigManager] ========================================");
             return new ConfigManager();
         }
     }

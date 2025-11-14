@@ -1,5 +1,6 @@
 ﻿using Agent.Database;
 using Agent.Database.Models;
+using Microsoft.Extensions.Logging;
 
 namespace Agent.Workers;
 
@@ -8,6 +9,7 @@ namespace Agent.Workers;
 /// </summary>
 public class UploadWorker
 {
+    private readonly ILogger<UploadWorker> _logger;
     private readonly DatabaseManager _database;
     private readonly CancellationTokenSource _cts;
     private Task? _workerTask;
@@ -25,8 +27,9 @@ public class UploadWorker
     public int TusMaxRetries { get; set; } = 3;
     public int TusRetryDelayMs { get; set; } = 1000;
 
-    public UploadWorker(DatabaseManager database)
+    public UploadWorker(DatabaseManager database, ILogger<UploadWorker> logger)
     {
+        _logger = logger;
         _database = database;
         _cts = new CancellationTokenSource();
     }
@@ -38,7 +41,7 @@ public class UploadWorker
     {
         if (_isRunning)
         {
-            Console.WriteLine("[UploadWorker] Já está rodando");
+            _logger.LogInformation("[UploadWorker] Já está rodando");
             return;
         }
 
@@ -46,23 +49,23 @@ public class UploadWorker
         if (!string.IsNullOrEmpty(UploadEndpoint))
         {
             _uploadClient = new HttpUploadClient(UploadEndpoint, ApiKey ?? "", _database);
-            Console.WriteLine($"[UploadWorker] Upload HTTP configurado: {UploadEndpoint}");
+            _logger.LogInformation($"[UploadWorker] Upload HTTP configurado: {UploadEndpoint}");
         }
         else
         {
-            Console.WriteLine("[UploadWorker] AVISO: Endpoint de upload não configurado, uploads serão simulados");
+            _logger.LogInformation("[UploadWorker] AVISO: Endpoint de upload não configurado, uploads serão simulados");
         }
 
         // Inicializar cliente TUS se configurado
         if (!string.IsNullOrWhiteSpace(TusServerUrl))
         {
             _tusClient = new TusUploadClient(TusServerUrl!, TusMaxRetries, TusRetryDelayMs, _database);
-            Console.WriteLine($"[UploadWorker] Upload TUS configurado: {TusServerUrl}");
+            _logger.LogInformation($"[UploadWorker] Upload TUS configurado: {TusServerUrl}");
         }
 
         _isRunning = true;
         _workerTask = Task.Run(() => WorkerLoop(_cts.Token));
-        Console.WriteLine("[UploadWorker] Worker iniciado");
+        _logger.LogInformation("[UploadWorker] Worker iniciado");
     }
 
     /// <summary>
@@ -73,7 +76,7 @@ public class UploadWorker
         if (!_isRunning)
             return;
 
-        Console.WriteLine("[UploadWorker] Parando worker...");
+        _logger.LogInformation("[UploadWorker] Parando worker...");
         _cts.Cancel();
 
         if (_workerTask != null)
@@ -84,7 +87,50 @@ public class UploadWorker
         _uploadClient?.Dispose();
         _tusClient?.Dispose();
         _isRunning = false;
-        Console.WriteLine("[UploadWorker] Worker parado");
+        _logger.LogInformation("[UploadWorker] Worker parado");
+    }
+
+    /// <summary>
+    /// Update upload settings (hot-reload for instant changes)
+    /// </summary>
+    public void UpdateSettings(
+        bool enabled,
+        int pollIntervalSeconds,
+        int maxConcurrentUploads,
+        int maxRetries,
+        string endpoint,
+        string apiKey,
+        string tusServerUrl,
+        int tusMaxRetries,
+        int tusRetryDelayMs)
+    {
+        _logger.LogInformation("[UploadWorker] Updating settings...");
+
+        PollIntervalSeconds = pollIntervalSeconds;
+        MaxConcurrentUploads = maxConcurrentUploads;
+        MaxRetries = maxRetries;
+        UploadEndpoint = endpoint;
+        ApiKey = apiKey;
+        TusServerUrl = tusServerUrl;
+        TusMaxRetries = tusMaxRetries;
+        TusRetryDelayMs = tusRetryDelayMs;
+
+        // Reinitialize clients if endpoints changed
+        if (!string.IsNullOrEmpty(endpoint) && _uploadClient == null)
+        {
+            _uploadClient?.Dispose();
+            _uploadClient = new HttpUploadClient(endpoint, apiKey ?? "", _database);
+            _logger.LogInformation("[UploadWorker] HTTP upload client reinitialized: {Endpoint}", endpoint);
+        }
+
+        if (!string.IsNullOrWhiteSpace(tusServerUrl) && _tusClient == null)
+        {
+            _tusClient?.Dispose();
+            _tusClient = new TusUploadClient(tusServerUrl, tusMaxRetries, tusRetryDelayMs, _database);
+            _logger.LogInformation("[UploadWorker] TUS upload client reinitialized: {TusServerUrl}", tusServerUrl);
+        }
+
+        _logger.LogInformation("[UploadWorker] Settings updated successfully");
     }
 
     /// <summary>
@@ -92,7 +138,7 @@ public class UploadWorker
     /// </summary>
     private async Task WorkerLoop(CancellationToken ct)
     {
-        Console.WriteLine("[UploadWorker] Loop iniciado");
+        _logger.LogInformation("[UploadWorker] Loop iniciado");
 
         while (!ct.IsCancellationRequested)
         {
@@ -103,7 +149,7 @@ public class UploadWorker
 
                 if (pendingVideos.Count > 0)
                 {
-                    Console.WriteLine($"[UploadWorker] {pendingVideos.Count} vídeo(s) pendente(s) de upload");
+                    _logger.LogInformation($"[UploadWorker] {pendingVideos.Count} vídeo(s) pendente(s) de upload");
 
                     // Processar uploads em paralelo (com limite)
                     var uploadTasks = pendingVideos.Select(video => ProcessUpload(video, ct));
@@ -115,17 +161,17 @@ public class UploadWorker
             }
             catch (OperationCanceledException)
             {
-                Console.WriteLine("[UploadWorker] Worker cancelado");
+                _logger.LogInformation("[UploadWorker] Worker cancelado");
                 break;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[UploadWorker] Erro no loop: {ex.Message}");
+                _logger.LogError($"[UploadWorker] Erro no loop: {ex.Message}");
                 await Task.Delay(5000, ct);
             }
         }
 
-        Console.WriteLine("[UploadWorker] Loop finalizado");
+        _logger.LogInformation("[UploadWorker] Loop finalizado");
     }
 
     /// <summary>
@@ -135,7 +181,7 @@ public class UploadWorker
     {
         try
         {
-            Console.WriteLine($"[UploadWorker] Processando: {Path.GetFileName(video.FilePath)}");
+            _logger.LogInformation($"[UploadWorker] Processando: {Path.GetFileName(video.FilePath)}");
 
             // Atualizar status para "uploading"
             _database.UpdateVideoStatus(video.Id, "uploading");
@@ -162,14 +208,14 @@ public class UploadWorker
             }
             else
             {
-                Console.WriteLine("[UploadWorker] AVISO: Simulando upload (endpoint não configurado)");
+                _logger.LogInformation("[UploadWorker] AVISO: Simulando upload (endpoint não configurado)");
                 uploadSuccess = await SimulateUpload(uploadTaskId, video, ct);
             }
 
             if (uploadSuccess)
             {
                 _database.UpdateVideoStatus(video.Id, "done");
-                Console.WriteLine($"[UploadWorker] ✓ Upload concluído: {Path.GetFileName(video.FilePath)}");
+                _logger.LogInformation($"[UploadWorker] ✓ Upload concluído: {Path.GetFileName(video.FilePath)}");
             }
             else
             {
@@ -179,18 +225,18 @@ public class UploadWorker
                 if (video.RetryCount + 1 >= MaxRetries)
                 {
                     _database.UpdateVideoStatus(video.Id, "error", "Máximo de tentativas excedido");
-                    Console.WriteLine($"[UploadWorker] ✗ Falha permanente: {Path.GetFileName(video.FilePath)}");
+                    _logger.LogInformation($"[UploadWorker] ✗ Falha permanente: {Path.GetFileName(video.FilePath)}");
                 }
                 else
                 {
                     _database.UpdateVideoStatus(video.Id, "pending");
-                    Console.WriteLine($"[UploadWorker] ⚠ Tentativa {video.RetryCount + 1}/{MaxRetries} falhou, reprocessando...");
+                    _logger.LogInformation($"[UploadWorker] ⚠ Tentativa {video.RetryCount + 1}/{MaxRetries} falhou, reprocessando...");
                 }
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[UploadWorker] Erro ao processar upload: {ex.Message}");
+            _logger.LogError($"[UploadWorker] Erro ao processar upload: {ex.Message}");
             _database.UpdateVideoStatus(video.Id, "error", ex.Message);
         }
     }
@@ -208,7 +254,7 @@ public class UploadWorker
                 var files = Directory.GetFiles(video.FilePath, "*.mp4");
                 if (files.Length == 0)
                 {
-                    Console.WriteLine($"[UploadWorker] Nenhum arquivo .mp4 encontrado em: {video.FilePath}");
+                    _logger.LogInformation($"[UploadWorker] Nenhum arquivo .mp4 encontrado em: {video.FilePath}");
                     return false;
                 }
 
@@ -217,14 +263,14 @@ public class UploadWorker
                 if (!File.Exists(firstFile))
                 {
                     var msg1 = $"Arquivo n�o encontrado: {firstFile}";
-                    Console.WriteLine($"[UploadWorker] {msg1}");
+                    _logger.LogInformation($"[UploadWorker] {msg1}");
                     throw new FileNotFoundException(msg1, firstFile);
                 }
                 var fi1 = new FileInfo(firstFile);
                 if (fi1.Length <= 0)
                 {
                     var msg2 = $"Arquivo vazio: {firstFile}";
-                    Console.WriteLine($"[UploadWorker] {msg2}");
+                    _logger.LogInformation($"[UploadWorker] {msg2}");
                     throw new Exception(msg2);
                 }
                 return true;
@@ -233,7 +279,7 @@ public class UploadWorker
             // Arquivo único
             if (!File.Exists(video.FilePath))
             {
-                Console.WriteLine($"[UploadWorker] Arquivo não encontrado: {video.FilePath}");
+                _logger.LogInformation($"[UploadWorker] Arquivo não encontrado: {video.FilePath}");
                 return false;
             }
 
@@ -241,7 +287,7 @@ public class UploadWorker
             if (fileInfo.Length == 0)
             {
                 var msg = $"Arquivo vazio: {video.FilePath}";
-                Console.WriteLine($"[UploadWorker] {msg}");
+                _logger.LogInformation($"[UploadWorker] {msg}");
                 throw new Exception(msg);
             }
 
@@ -250,7 +296,7 @@ public class UploadWorker
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[UploadWorker] Erro ao validar arquivo: {ex.Message}");
+            _logger.LogError($"[UploadWorker] Erro ao validar arquivo: {ex.Message}");
             throw;
         }
     }
@@ -271,7 +317,7 @@ public class UploadWorker
                 long bytesUploaded = (video.FileSizeBytes * progress) / 100;
                 _database.UpdateUploadProgress(uploadTaskId, bytesUploaded, progress);
 
-                Console.WriteLine($"[UploadWorker] Progresso: {progress}% ({Path.GetFileName(video.FilePath)})");
+                _logger.LogInformation($"[UploadWorker] Progresso: {progress}% ({Path.GetFileName(video.FilePath)})");
 
                 // Simular tempo de upload (ajustar baseado no tamanho)
                 await Task.Delay(500, ct);
@@ -281,7 +327,7 @@ public class UploadWorker
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[UploadWorker] Erro no upload simulado: {ex.Message}");
+            _logger.LogError($"[UploadWorker] Erro no upload simulado: {ex.Message}");
             return false;
         }
     }
@@ -300,7 +346,7 @@ public class UploadWorker
     public void RetryFailedVideos()
     {
         // TODO: Implementar query para resetar vídeos com status='error' para 'pending'
-        Console.WriteLine("[UploadWorker] Reprocessando vídeos com erro...");
+        _logger.LogInformation("[UploadWorker] Reprocessando vídeos com erro...");
     }
 }
 

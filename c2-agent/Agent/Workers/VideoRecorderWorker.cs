@@ -1,13 +1,15 @@
-﻿using Agent.Database;
+using Agent.Database;
 using Agent.Database.Models;
+using Microsoft.Extensions.Logging;
 
 namespace Agent.Workers;
 
 /// <summary>
-/// Worker responsável por gravação autônoma de vídeo
+/// Worker respons�vel por grava��o aut�noma de v�deo
 /// </summary>
 public class VideoRecorderWorker
 {
+    private readonly ILogger<VideoRecorderWorker> _logger;
     private readonly FFmpegRecorder _recorder;
     private readonly DatabaseManager _database;
     private readonly CancellationTokenSource _cts;
@@ -17,13 +19,14 @@ public class VideoRecorderWorker
     private readonly HashSet<string> _registeredSegments = new();
     private string? _currentProcessSnapshot;
 
-    // Configurações
+    // Configura��es
     public int RecordingIntervalMinutes { get; set; } = 60; // Gravar a cada 60 minutos
-    public int RecordingDurationMinutes { get; set; } = 60; // Duração de cada gravação
-    public bool ContinuousMode { get; set; } = true; // Gravação contínua
+    public int RecordingDurationMinutes { get; set; } = 60; // Dura��o de cada grava��o
+    public bool ContinuousMode { get; set; } = true; // Grava��o cont�nua
 
-    public VideoRecorderWorker(FFmpegRecorder recorder, DatabaseManager database)
+    public VideoRecorderWorker(FFmpegRecorder recorder, DatabaseManager database, ILogger<VideoRecorderWorker> logger)
     {
+        _logger = logger;
         _recorder = recorder;
         _database = database;
         _cts = new CancellationTokenSource();
@@ -36,13 +39,13 @@ public class VideoRecorderWorker
     {
         if (_isRunning)
         {
-            Console.WriteLine("[VideoRecorderWorker] Já está rodando");
+            Console.WriteLine("[VideoRecorderWorker] J� est� rodando");
             return;
         }
 
         _isRunning = true;
         _workerTask = Task.Run(() => WorkerLoop(_cts.Token));
-        Console.WriteLine("[VideoRecorderWorker] Worker iniciado");
+        _logger.LogInformation("[VideoRecorderWorker] Worker iniciado");
     }
 
     /// <summary>
@@ -53,7 +56,7 @@ public class VideoRecorderWorker
         if (!_isRunning)
             return;
 
-        Console.WriteLine("[VideoRecorderWorker] Parando worker...");
+        _logger.LogInformation("[VideoRecorderWorker] Parando worker...");
         _cts.Cancel();
 
         if (_workerTask != null)
@@ -61,7 +64,7 @@ public class VideoRecorderWorker
             await _workerTask;
         }
 
-        // Se estiver gravando, parar a gravação
+        // Se estiver gravando, parar a grava��o
         if (_recorder.IsRecording)
         {
             await _recorder.StopRecording();
@@ -72,7 +75,21 @@ public class VideoRecorderWorker
         _currentProcessSnapshot = null;
 
         _isRunning = false;
-        Console.WriteLine("[VideoRecorderWorker] Worker parado");
+        _logger.LogInformation("[VideoRecorderWorker] Worker parado");
+    }
+
+    /// <summary>
+    /// Update recording intervals (hot-reload for instant changes)
+    /// </summary>
+    public void UpdateIntervals(int intervalMinutes, int durationMinutes)
+    {
+        _logger.LogInformation("[VideoRecorderWorker] Updating intervals: Interval={IntervalMinutes}min, Duration={DurationMinutes}min",
+            intervalMinutes, durationMinutes);
+
+        RecordingIntervalMinutes = intervalMinutes;
+        RecordingDurationMinutes = durationMinutes;
+
+        _logger.LogInformation("[VideoRecorderWorker] Intervals updated successfully");
     }
 
     /// <summary>
@@ -80,7 +97,7 @@ public class VideoRecorderWorker
     /// </summary>
     private async Task WorkerLoop(CancellationToken ct)
     {
-        Console.WriteLine("[VideoRecorderWorker] Loop iniciado");
+        _logger.LogInformation("[VideoRecorderWorker] Loop iniciado");
 
         while (!ct.IsCancellationRequested)
         {
@@ -97,38 +114,38 @@ public class VideoRecorderWorker
             }
             catch (OperationCanceledException)
             {
-                Console.WriteLine("[VideoRecorderWorker] Worker cancelado");
+                _logger.LogInformation("[VideoRecorderWorker] Worker cancelado");
                 break;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[VideoRecorderWorker] Erro no loop: {ex.Message}");
+                _logger.LogError("[VideoRecorderWorker] Erro no loop: {Message}", ex.Message);
                 // Aguardar um pouco antes de tentar novamente
                 await Task.Delay(5000, ct);
             }
         }
 
-        Console.WriteLine("[VideoRecorderWorker] Loop finalizado");
+        _logger.LogInformation("[VideoRecorderWorker] Loop finalizado");
     }
 
     /// <summary>
-    /// Grava sessão contínua (sem parar)
+    /// Grava sess�o cont�nua (sem parar)
     /// </summary>
     private async Task RecordContinuousSession(CancellationToken ct)
     {
-        Console.WriteLine("[VideoRecorderWorker] Iniciando gravação contínua...");
+        Console.WriteLine("[VideoRecorderWorker] Iniciando grava��o cont�nua...");
 
-        // Capturar processos no início da sessão
+        // Capturar processos no in�cio da sess�o
         string processSnapshot = ProcessMonitor.CaptureAndSerialize();
         _currentProcessSnapshot = processSnapshot;
 
-        // Iniciar gravação (duração 0 = sem limite)
+        // Iniciar grava��o (dura��o 0 = sem limite)
         string outputPath = await _recorder.StartRecording(0);
 
         // Extrair session key do path
         string? sessionKey = ExtractSessionKey(outputPath);
 
-        // Inserir registro no banco (vídeos segmentados serão adicionados conforme são criados)
+        // Inserir registro no banco (v�deos segmentados ser�o adicionados conforme s�o criados)
         var record = new VideoRecord
         {
             FilePath = outputPath,
@@ -139,14 +156,14 @@ public class VideoRecorderWorker
         };
 
         long recordId = _database.InsertVideoRecord(record);
-        Console.WriteLine($"[VideoRecorderWorker] Registro criado: ID={recordId}");
+        _logger.LogInformation("[VideoRecorderWorker] Sessão contínua iniciada (ID: {RecordId}, Session: {SessionKey})", recordId, sessionKey ?? "N/A");
 
-        // Se segmenta��o estiver ativa, monitorar novos segmentos e enfileirar como 'pending'
+        // Se segmenta??o estiver ativa, monitorar novos segmentos e enfileirar como 'pending'
         try
         {
             if (_recorder.SegmentSeconds > 0 && Directory.Exists(outputPath))
             {
-                Console.WriteLine($"[VideoRecorderWorker] Monitorando segmentos em: {outputPath}");
+                _logger.LogInformation("[VideoRecorderWorker] Segmentação ativa: {SegmentSeconds}s por arquivo", _recorder.SegmentSeconds);
                 _segmentWatcher = new FileSystemWatcher(outputPath, "*.mp4")
                 {
                     IncludeSubdirectories = false,
@@ -183,7 +200,7 @@ public class VideoRecorderWorker
                 _segmentWatcher.Created += onCreatedOrChanged;
                 _segmentWatcher.Changed += onCreatedOrChanged;
 
-                // Processar quaisquer arquivos j� existentes
+                // Processar quaisquer arquivos j? existentes
                 try
                 {
                     foreach (var file in Directory.GetFiles(outputPath, "*.mp4", SearchOption.TopDirectoryOnly))
@@ -207,25 +224,25 @@ public class VideoRecorderWorker
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[VideoRecorderWorker] Erro ao iniciar watcher de segmentos: {ex.Message}");
+            _logger.LogError("[VideoRecorderWorker] Erro ao configurar FileSystemWatcher: {Message}", ex.Message);
         }
 
-        // Aguardar cancelamento (gravação contínua até ser parada)
+        // Aguardar cancelamento (grava��o cont�nua at� ser parada)
         await Task.Delay(Timeout.Infinite, ct);
     }
 
     /// <summary>
-    /// Grava sessão agendada (com duração e intervalo)
+    /// Grava sess�o agendada (com dura��o e intervalo)
     /// </summary>
     private async Task RecordScheduledSession(CancellationToken ct)
     {
-        Console.WriteLine($"[VideoRecorderWorker] Iniciando gravação agendada: {RecordingDurationMinutes}min");
+        _logger.LogInformation("[VideoRecorderWorker] Iniciando sessão agendada: {Duration}min de gravação a cada {Interval}min", RecordingDurationMinutes, RecordingIntervalMinutes);
 
-        // Capturar processos no início da sessão
+        // Capturar processos no in�cio da sess�o
         string processSnapshot = ProcessMonitor.CaptureAndSerialize();
         _currentProcessSnapshot = processSnapshot;
 
-        // Iniciar gravação com duração limitada
+        // Iniciar grava��o com dura��o limitada
         int durationSeconds = RecordingDurationMinutes * 60;
         string outputPath = await _recorder.StartRecording(durationSeconds);
 
@@ -239,12 +256,12 @@ public class VideoRecorderWorker
             SessionKey = sessionKey,
             ProcessSnapshot = processSnapshot,
             Status = "pending", // Pendente de upload
-            FileSizeBytes = 0 // Será atualizado depois
+            FileSizeBytes = 0 // Ser� atualizado depois
         };
 
         long recordId = _database.InsertVideoRecord(record);
 
-        // Aguardar término da gravação
+        // Aguardar t�rmino da grava��o
         await Task.Delay((durationSeconds + 5) * 1000, ct);
 
         // Atualizar tamanho do arquivo
@@ -261,13 +278,13 @@ public class VideoRecorderWorker
             }
         }
 
-        Console.WriteLine($"[VideoRecorderWorker] Gravação concluída: ID={recordId}");
+        _logger.LogInformation("[VideoRecorderWorker] Sessão agendada concluída (ID: {RecordId}, Duração: {Duration}min)", recordId, RecordingDurationMinutes);
 
-        // Aguardar intervalo até próxima gravação
+        // Aguardar intervalo at� pr�xima grava��o
         int waitMinutes = RecordingIntervalMinutes - RecordingDurationMinutes;
         if (waitMinutes > 0)
         {
-            Console.WriteLine($"[VideoRecorderWorker] Aguardando {waitMinutes}min até próxima gravação");
+            _logger.LogInformation("[VideoRecorderWorker] Aguardando {WaitMinutes}min até próxima gravação...", waitMinutes);
             await Task.Delay(waitMinutes * 60 * 1000, ct);
         }
     }
@@ -314,11 +331,11 @@ public class VideoRecorderWorker
             };
 
             long id = _database.InsertVideoRecord(record);
-            Console.WriteLine($"[VideoRecorderWorker] Segmento registrado: {Path.GetFileName(filePath)} (ID={id})");
+            _logger.LogInformation("[VideoRecorderWorker] Segmento registrado (ID: {RecordId}, Arquivo: {FileName}, Tamanho: {SizeKB} KB)", id, Path.GetFileName(filePath), fileInfo.Length / 1024);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[VideoRecorderWorker] Erro ao registrar segmento: {ex.Message}");
+            _logger.LogError("[VideoRecorderWorker] Erro ao registrar segmento: {Message}", ex.Message);
         }
     }
 

@@ -26,6 +26,7 @@ public static class FFmpegHelper
         var paths = new[]
         {
             Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ffmpeg", "ffmpeg.exe"),
+            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "ffmpeg", "ffmpeg.exe"),
             Path.Combine(Environment.CurrentDirectory, "ffmpeg", "ffmpeg.exe"),
             "ffmpeg.exe" // No PATH do sistema
         };

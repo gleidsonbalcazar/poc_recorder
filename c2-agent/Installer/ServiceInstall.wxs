@@ -32,7 +32,7 @@
                         Start="install"
                         Stop="both"
                         Remove="uninstall"
-                        Wait="no" />
+                        Wait="yes" />
 
         <!-- Service Dependencies -->
         <util:ServiceConfig ServiceName="PaneasMonitorService"

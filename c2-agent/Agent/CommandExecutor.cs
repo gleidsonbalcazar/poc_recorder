@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using Agent.Models;
+using Microsoft.Extensions.Logging;
 
 namespace Agent
 {
@@ -10,6 +11,7 @@ namespace Agent
     /// </summary>
     public class CommandExecutor : IDisposable
     {
+        private readonly ILogger<CommandExecutor> _logger;
         private readonly int _commandTimeoutMs;
         private readonly FFmpegRecorder _videoRecorder;
         private readonly MediaStorage _mediaStorage;
@@ -18,16 +20,18 @@ namespace Agent
         // Public properties to access recorders (for MediaHttpServer)
         public FFmpegRecorder VideoRecorder => _videoRecorder;
 
-        public CommandExecutor(string agentId, string storageBasePath, int commandTimeoutMs = 60000)
+        public CommandExecutor(string agentId, string storageBasePath, ILoggerFactory loggerFactory, int commandTimeoutMs = 60000)
         {
+            _logger = loggerFactory.CreateLogger<CommandExecutor>();
             _commandTimeoutMs = commandTimeoutMs;
             _agentId = agentId;
 
             // Inicializar componentes de mídia
-            _videoRecorder = new FFmpegRecorder(storageBasePath);
+            var ffmpegLogger = loggerFactory.CreateLogger<FFmpegRecorder>();
+            _videoRecorder = new FFmpegRecorder(storageBasePath, ffmpegLogger);
             _mediaStorage = new MediaStorage(storageBasePath);
 
-            Console.WriteLine($"[CommandExecutor] Inicializado com storage: {storageBasePath}");
+            _logger.LogInformation("[CommandExecutor] Inicializado com storage: {StoragePath}", storageBasePath);
         }
 
         /// <summary>

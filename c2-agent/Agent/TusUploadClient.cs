@@ -103,7 +103,7 @@ namespace Agent;
         }
 
         // Metadados no padrão tusd (o cliente aplica base64 internamente)
-        // Usaremos chaves: filename, filetype, processes, fileextension, stationId
+        // Usaremos chaves: filename, filetype, fileextension, stationId (processes removido por ser muito grande)
         string? fileUrl = null;
         Console.WriteLine($"[TusUploadClient] Criando upload no servidor TUS para: {fi.Name} ({fi.Length} bytes)");
         for (int attempt = 0; attempt <= _maxRetries; attempt++)
@@ -115,7 +115,6 @@ namespace Agent;
                     fi.Length,
                     ("filename", fi.Name),
                     ("filetype", "video/mp4"),
-                    ("processes", processSnapshot ?? string.Empty),
                     ("fileextension", fi.Extension.TrimStart('.')),
                     ("stationId", stationId)
                 );
