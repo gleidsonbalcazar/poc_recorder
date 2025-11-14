@@ -2,10 +2,12 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using Agent.Configuration;
+using Agent.Recording;
 using Agent.Workers;
 using Agent.Database;
 
-namespace Agent;
+namespace Agent.Http;
 
 /// <summary>
 /// Simple HTTP server to serve media files for preview in dashboard

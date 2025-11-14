@@ -4,7 +4,7 @@ using System.Text.Json;
 using Agent.Database;
 using Agent.Database.Models;
 
-namespace Agent;
+namespace Agent.Upload;
 
 /// <summary>
 /// Cliente HTTP para upload de vídeos com progress tracking

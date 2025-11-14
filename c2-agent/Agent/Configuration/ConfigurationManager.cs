@@ -2,7 +2,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Agent.Workers;
 
-namespace Agent;
+namespace Agent.Configuration;
 
 /// <summary>
 /// Enhanced configuration manager with hot-reload support

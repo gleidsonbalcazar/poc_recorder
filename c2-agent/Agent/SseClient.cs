@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using Agent.Models;
+using Agent.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Agent

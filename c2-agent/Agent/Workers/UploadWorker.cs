@@ -1,5 +1,6 @@
 ﻿using Agent.Database;
 using Agent.Database.Models;
+using Agent.Upload;
 using Microsoft.Extensions.Logging;
 
 namespace Agent.Workers;

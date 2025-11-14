@@ -1,5 +1,7 @@
 using Agent.Database;
 using Agent.Database.Models;
+using Agent.Recording;
+using Agent.Utilities;
 using Microsoft.Extensions.Logging;
 
 namespace Agent.Workers;

@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.IO.Compression;
 using System.Text.RegularExpressions;
 
-namespace Agent;
+namespace Agent.Recording;
 
 /// <summary>
 /// Classe auxiliar para operações com FFmpeg

@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 
-namespace Agent;
+namespace Agent.Utilities;
 
 /// <summary>
 /// Windows Job Object wrapper to ensure child processes are automatically killed when parent exits.

@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Agent;
+namespace Agent.Storage;
 
 /// <summary>
 /// Gerencia armazenamento local de arquivos de mídia

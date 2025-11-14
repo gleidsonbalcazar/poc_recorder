@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+
+  <Fragment>
+    <!-- Auto-generated Agent Files (DO NOT EDIT MANUALLY) -->
+    <!-- Generated: 2025-11-11 17:53:24 -->
+    <!-- Files from: C:\Users\Integer\Pan\c2-agent\Agent\bin\x64\Release\net8.0\win-x64\publish -->
+
+    <ComponentGroup Id="AgentBinaries" Directory="BinFolder">
+
+      <!-- Agent.exe -->
+      <Component Id="AgentComp1" Guid="7E67E3BF-B7BA-40A4-9D41-A0359362F697">
+        <File Id="AgentFile1"
+              Name="Agent.exe"
+              Source="$(var.ProjectDir)\..\Agent\bin\x64\Release\net8.0\win-x64\publish\Agent.exe"
+              KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+  </Fragment>
+
+</Wix>

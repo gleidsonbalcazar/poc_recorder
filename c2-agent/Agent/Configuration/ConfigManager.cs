@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace Agent;
+namespace Agent.Configuration;
 
 /// <summary>
 /// Perfis de gravação pré-configurados
@@ -129,8 +129,15 @@ public class RecordingConfig
     public int VideoQuality { get; set; } = 23; // Qualidade MJPEG (1-31, menor=melhor) ou CRF para H.264
 
     /// <summary>
+    /// Se true, os valores do appsettings.json têm prioridade absoluta sobre o perfil.
+    /// Se false (padrão), o perfil aplica seus valores para campos não customizados.
+    /// Útil quando você quer especificar valores manualmente sem usar perfil.
+    /// </summary>
+    public bool OverrideProfile { get; set; } = false;
+
+    /// <summary>
     /// Aplica configurações baseadas no perfil selecionado
-    /// Se valores customizados existirem no appsettings.json, eles têm prioridade
+    /// Se valores customizados existirem no appsettings.json, eles têm prioridade REAL
     /// </summary>
     public void ApplyProfile()
     {
@@ -141,51 +148,159 @@ public class RecordingConfig
             profileEnum = RecordingProfile.Performance;
         }
 
+        // Se OverrideProfile=true, usar valores do appsettings.json e ignorar perfil
+        if (OverrideProfile)
+        {
+            Console.WriteLine($"[ConfigManager] OverrideProfile=true: Usando valores do appsettings.json (FPS: {FPS}, Bitrate: {VideoBitrate}k, Segment: {SegmentSeconds}s, Codec: {Codec})");
+            Console.WriteLine("[ConfigManager] ✓ Perfil ignorado, valores do appsettings.json preservados");
+            return;
+        }
+
+        // IMPORTANTE: Guardar valores ATUAIS do appsettings.json ANTES de aplicar perfil
+        var userFPS = FPS;
+        var userBitrate = VideoBitrate;
+        var userSegmentSeconds = SegmentSeconds;
+        var userCaptureAudio = CaptureAudio;
+        var userCodec = Codec;
+        var userVideoQuality = VideoQuality;
+
+        // Valores padrão da classe (para detectar customizações)
+        var defaults = new RecordingConfig();
+
         // Aplicar configurações do perfil
+        int profileFPS, profileBitrate, profileSegmentSeconds, profileVideoQuality;
+        bool profileCaptureAudio;
+        string profileCodec;
+
         switch (profileEnum)
         {
             case RecordingProfile.Performance:
                 // Otimizado para máquinas fracas (reduz CPU em ~50%)
-                FPS = 15;
-                VideoBitrate = 1200;
-                SegmentSeconds = 60;
-                CaptureAudio = true;
-                Codec = "libx264";
-                Console.WriteLine("[ConfigManager] Perfil: Performance (FPS: 15, Bitrate: 1200k, Segment: 60s)");
+                profileFPS = 15;
+                profileBitrate = 1200;
+                profileSegmentSeconds = 60;
+                profileCaptureAudio = true;
+                profileCodec = "libx264";
+                profileVideoQuality = defaults.VideoQuality;
                 break;
 
             case RecordingProfile.Balanced:
                 // Equilíbrio entre qualidade e performance (reduz CPU em ~33%)
-                FPS = 20;
-                VideoBitrate = 1500;
-                SegmentSeconds = 60;
-                CaptureAudio = true;
-                Codec = "libx264";
-                Console.WriteLine("[ConfigManager] Perfil: Balanced (FPS: 20, Bitrate: 1500k, Segment: 60s)");
+                profileFPS = 20;
+                profileBitrate = 1500;
+                profileSegmentSeconds = 60;
+                profileCaptureAudio = true;
+                profileCodec = "libx264";
+                profileVideoQuality = defaults.VideoQuality;
                 break;
 
             case RecordingProfile.Quality:
                 // Máxima qualidade (configuração original)
-                FPS = 30;
-                VideoBitrate = 2000;
-                SegmentSeconds = 30;
-                CaptureAudio = true;
-                Codec = "libx264";
-                Console.WriteLine("[ConfigManager] Perfil: Quality (FPS: 30, Bitrate: 2000k, Segment: 30s)");
+                profileFPS = 30;
+                profileBitrate = 2000;
+                profileSegmentSeconds = 30;
+                profileCaptureAudio = true;
+                profileCodec = "libx264";
+                profileVideoQuality = defaults.VideoQuality;
                 break;
 
             case RecordingProfile.LowEnd:
                 // Máquinas extremamente fracas (Pentium/Celeron)
                 // MJPEG usa menos CPU/RAM mas gera arquivos 2-3x maiores
-                FPS = 10;
-                SegmentSeconds = 120;
-                CaptureAudio = true;
-                Codec = "mjpeg";
-                VideoQuality = 5; // Quality 5 (1-31, menor=melhor)
-                VideoBitrate = 0; // Não usado com MJPEG (usa quality)
-                Console.WriteLine("[ConfigManager] Perfil: LowEnd (MJPEG, FPS: 10, Quality: 5, Segment: 120s)");
-                Console.WriteLine("[ConfigManager] AVISO: MJPEG gera arquivos 2-3x maiores que H.264!");
+                profileFPS = 10;
+                profileBitrate = 0; // Não usado com MJPEG
+                profileSegmentSeconds = 120;
+                profileCaptureAudio = true;
+                profileCodec = "mjpeg";
+                profileVideoQuality = 5; // Quality 5 (1-31, menor=melhor)
                 break;
+
+            default:
+                // Fallback to defaults
+                profileFPS = defaults.FPS;
+                profileBitrate = defaults.VideoBitrate;
+                profileSegmentSeconds = defaults.SegmentSeconds;
+                profileCaptureAudio = defaults.CaptureAudio;
+                profileCodec = defaults.Codec;
+                profileVideoQuality = defaults.VideoQuality;
+                break;
+        }
+
+        // APLICAR valores: usa perfil, mas customizações do appsettings.json têm prioridade
+        // Um valor é considerado customizado se for diferente do default da classe
+        bool hasCustomValues = false;
+
+        if (userFPS != defaults.FPS)
+        {
+            FPS = userFPS; // Customizado
+            hasCustomValues = true;
+        }
+        else
+        {
+            FPS = profileFPS; // Do perfil
+        }
+
+        if (userBitrate != defaults.VideoBitrate)
+        {
+            VideoBitrate = userBitrate; // Customizado
+            hasCustomValues = true;
+        }
+        else
+        {
+            VideoBitrate = profileBitrate; // Do perfil
+        }
+
+        if (userSegmentSeconds != defaults.SegmentSeconds)
+        {
+            SegmentSeconds = userSegmentSeconds; // Customizado
+            hasCustomValues = true;
+        }
+        else
+        {
+            SegmentSeconds = profileSegmentSeconds; // Do perfil
+        }
+
+        if (userCaptureAudio != defaults.CaptureAudio)
+        {
+            CaptureAudio = userCaptureAudio; // Customizado
+            hasCustomValues = true;
+        }
+        else
+        {
+            CaptureAudio = profileCaptureAudio; // Do perfil
+        }
+
+        if (userCodec != defaults.Codec)
+        {
+            Codec = userCodec; // Customizado
+            hasCustomValues = true;
+        }
+        else
+        {
+            Codec = profileCodec; // Do perfil
+        }
+
+        if (userVideoQuality != defaults.VideoQuality)
+        {
+            VideoQuality = userVideoQuality; // Customizado
+            hasCustomValues = true;
+        }
+        else
+        {
+            VideoQuality = profileVideoQuality; // Do perfil
+        }
+
+        // Log final
+        Console.WriteLine($"[ConfigManager] Perfil: {profileEnum} (FPS: {FPS}, Bitrate: {VideoBitrate}k, Segment: {SegmentSeconds}s, Codec: {Codec})");
+
+        if (hasCustomValues)
+        {
+            Console.WriteLine("[ConfigManager] ✓ Valores customizados do appsettings.json foram mantidos");
+        }
+
+        if (profileEnum == RecordingProfile.LowEnd)
+        {
+            Console.WriteLine("[ConfigManager] AVISO: MJPEG gera arquivos 2-3x maiores que H.264!");
         }
     }
 

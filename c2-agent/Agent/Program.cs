@@ -1,5 +1,12 @@
 using Agent;
 using Agent.Models;
+using AppConfiguration = Agent.Configuration.ConfigManager;
+using ConfigHotReload = Agent.Configuration.ConfigurationManager;
+using Agent.Recording;
+using Agent.Storage;
+using Agent.Upload;
+using Agent.Http;
+using Agent.Utilities;
 using Agent.Database;
 using Agent.Workers;
 using Microsoft.Extensions.Logging;
@@ -14,7 +21,7 @@ namespace AgentApp
         static async Task Main(string[] args)
         {
             // Load configuration from appsettings.json FIRST
-            var appConfig = ConfigManager.LoadFromFile();
+            var appConfig = AppConfiguration.LoadFromFile();
 
             // Apply recording profile (Performance, Balanced, Quality)
             appConfig.Recording.ApplyProfile();
@@ -174,9 +181,9 @@ namespace AgentApp
 
             // Create ConfigurationManager for hot-reload support
             var configPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
-            var configManager = new Agent.ConfigurationManager(
+            var configManager = new ConfigHotReload(
                 configPath,
-                loggerFactory.CreateLogger<Agent.ConfigurationManager>()
+                loggerFactory.CreateLogger<ConfigHotReload>()
             );
 
             // Register workers with ConfigurationManager for hot-reload

@@ -8,3 +8,17 @@ Thumbs.db
 Desktop.ini
 .DS_Store
 
+# Backup files
+*.backup
+*.bak
+
+# Temporary PowerShell scripts
+*.ps1.tmp
+
+# Development configuration (optional - uncomment if needed)
+# appsettings.Development.json
+
+# Logs
+logs/
+*.log
+

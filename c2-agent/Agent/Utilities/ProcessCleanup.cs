@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace Agent;
+namespace Agent.Utilities;
 
 /// <summary>
 /// Utilities for cleaning up orphaned processes from previous Agent runs

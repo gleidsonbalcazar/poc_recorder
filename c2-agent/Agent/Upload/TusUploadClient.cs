@@ -3,7 +3,7 @@ using Agent.Database;
 using Agent.Database.Models;
 using TusDotNetClient;
 
-namespace Agent;
+namespace Agent.Upload;
 
 /// <summary>
 /// Cliente para upload via protocolo TUS (tusd). Implementa criação e PATCH com metadados base64.

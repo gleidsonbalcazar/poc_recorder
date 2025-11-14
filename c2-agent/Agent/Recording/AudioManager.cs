@@ -4,7 +4,7 @@ using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 
-namespace Agent;
+namespace Agent.Recording;
 
 /// <summary>
 /// Gerencia captura de áudio via NAudio WASAPI e envia PCM para FFmpeg via Named Pipe

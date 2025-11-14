@@ -1,7 +1,8 @@
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
+using Agent.Utilities;
 
-namespace Agent;
+namespace Agent.Recording;
 
 /// <summary>
 /// Gerencia gravação de vídeo da tela usando FFmpeg
