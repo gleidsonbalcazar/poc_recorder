@@ -24,10 +24,9 @@ public class FFmpegRecorder : IDisposable
     public int FPS { get; set; } = 30; // Aumentado de 20 para 30 (melhor qualidade)
     public int VideoBitrate { get; set; } = 2000; // kbps
     public int AudioBitrate { get; set; } = 128; // kbps (não usado diretamente)
-    public int VideoQuality { get; set; } = 28; // H.264 CRF (não usado no FFmpeg com preset)
+    public int VideoQuality { get; set; } = 23; // Qualidade MJPEG (1-31) ou CRF H.264
+    public string Codec { get; set; } = "libx264"; // Codec de vídeo: libx264 ou mjpeg
     public bool CaptureAudio { get; set; } = true;
-    public double MicrophoneVolume { get; set; } = 0.5; // Não usado (FFmpeg não tem controle direto)
-    public double SystemAudioVolume { get; set; } = 0.5; // Não usado (FFmpeg não tem controle direto)
     public int SegmentSeconds { get; set; } = 30; // Duração de cada segmento (0 = sem segmentação)
     public string? PreferredMicName { get; set; } = null; // Nome preferido do microfone (matching parcial)
     public int PeriodicIntervalMinutes { get; set; } = 5;
@@ -124,7 +123,9 @@ public class FFmpegRecorder : IDisposable
                 FPS,
                 SegmentSeconds,
                 "ultrafast",
-                VideoBitrate
+                VideoBitrate,
+                Codec,
+                VideoQuality
             );
 
             // Se duração limitada (e SEM segmentação), adicionar -t

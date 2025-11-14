@@ -122,6 +122,8 @@ namespace AgentApp
             executor.VideoRecorder.FPS = appConfig.Recording.FPS;
             executor.VideoRecorder.VideoBitrate = appConfig.Recording.VideoBitrate;
             executor.VideoRecorder.CaptureAudio = appConfig.Recording.CaptureAudio;
+            executor.VideoRecorder.Codec = appConfig.Recording.Codec;
+            executor.VideoRecorder.VideoQuality = appConfig.Recording.VideoQuality;
 
             SseClient? sseClient = null;
             if (appConfig.C2.Enabled)

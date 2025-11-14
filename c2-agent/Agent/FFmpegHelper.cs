@@ -390,8 +390,10 @@ public static class FFmpegHelper
     /// <param name="pipePath">Caminho do Named Pipe (ex: \\.\pipe\C2Agent_Audio)</param>
     /// <param name="framerate">Taxa de quadros</param>
     /// <param name="segmentSeconds">Duração de cada segmento em segundos (0 = sem segmentação)</param>
-    /// <param name="preset">Preset H.264</param>
-    /// <param name="videoBitrate">Bitrate do vídeo em kbps</param>
+    /// <param name="preset">Preset H.264 (usado apenas com libx264)</param>
+    /// <param name="videoBitrate">Bitrate do vídeo em kbps (usado apenas com libx264)</param>
+    /// <param name="codec">Codec de vídeo (libx264 ou mjpeg)</param>
+    /// <param name="videoQuality">Qualidade MJPEG (1-31, menor=melhor) ou CRF H.264</param>
     /// <returns>String com argumentos do FFmpeg</returns>
     public static string BuildRecordingArgumentsWithPipe(
         string outputPattern,
@@ -399,7 +401,9 @@ public static class FFmpegHelper
         int framerate = 30,
         int segmentSeconds = 30,
         string preset = "ultrafast",
-        int videoBitrate = 2000)
+        int videoBitrate = 2000,
+        string codec = "libx264",
+        int videoQuality = 23)
     {
         Console.WriteLine("[SYNC] ===== CONFIGURAÇÃO FFmpeg =====");
         Console.WriteLine("[SYNC] INPUT 0: VIDEO (gdigrab desktop) ← MASTER CLOCK");
@@ -441,11 +445,24 @@ public static class FFmpegHelper
         args.Add("-map 0:v"); // Video from gdigrab (input 0)
         args.Add("-map 1:a"); // Audio from pipe (input 1)
 
-        // Video codec e qualidade
-        args.Add("-c:v libx264");
-        args.Add($"-preset {preset}");
-        args.Add($"-b:v {videoBitrate}k");
-        args.Add("-pix_fmt yuv420p");
+        // Video codec e qualidade (H.264 ou MJPEG)
+        if (codec.ToLowerInvariant() == "mjpeg")
+        {
+            // MJPEG: usa quality-based encoding (menor CPU/RAM, arquivos maiores)
+            args.Add("-c:v mjpeg");
+            args.Add($"-q:v {videoQuality}"); // 1-31, menor=melhor qualidade
+            args.Add("-pix_fmt yuvj420p"); // Pixel format para MJPEG
+            Console.WriteLine($"[FFmpegHelper] Codec: MJPEG, Quality: {videoQuality}, FPS: {framerate}");
+        }
+        else
+        {
+            // H.264: usa bitrate-based encoding (maior compressão, mais CPU)
+            args.Add("-c:v libx264");
+            args.Add($"-preset {preset}");
+            args.Add($"-b:v {videoBitrate}k");
+            args.Add("-pix_fmt yuv420p");
+            Console.WriteLine($"[FFmpegHelper] Codec: H.264, Preset: {preset}, Bitrate: {videoBitrate}k, FPS: {framerate}");
+        }
 
         // Audio codec (comprime PCM para AAC)
         args.Add("-c:a aac");

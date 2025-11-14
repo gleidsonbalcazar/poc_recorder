@@ -9,7 +9,8 @@ public enum RecordingProfile
 {
     Performance,  // Otimizado para máquinas fracas (FPS baixo, bitrate reduzido)
     Balanced,     // Equilíbrio entre qualidade e performance
-    Quality       // Máxima qualidade (maior uso de CPU e espaço)
+    Quality,      // Máxima qualidade (maior uso de CPU e espaço)
+    LowEnd        // Máquinas extremamente fracas (MJPEG, CPU mínimo)
 }
 
 /// <summary>
@@ -124,6 +125,8 @@ public class RecordingConfig
     public int VideoBitrate { get; set; } = 2000;
     public bool CaptureAudio { get; set; } = true;
     public string Profile { get; set; } = "Performance"; // Perfil padrão: Performance
+    public string Codec { get; set; } = "libx264"; // Codec de vídeo: libx264 (H.264) ou mjpeg
+    public int VideoQuality { get; set; } = 23; // Qualidade MJPEG (1-31, menor=melhor) ou CRF para H.264
 
     /// <summary>
     /// Aplica configurações baseadas no perfil selecionado
@@ -147,6 +150,7 @@ public class RecordingConfig
                 VideoBitrate = 1200;
                 SegmentSeconds = 60;
                 CaptureAudio = true;
+                Codec = "libx264";
                 Console.WriteLine("[ConfigManager] Perfil: Performance (FPS: 15, Bitrate: 1200k, Segment: 60s)");
                 break;
 
@@ -156,6 +160,7 @@ public class RecordingConfig
                 VideoBitrate = 1500;
                 SegmentSeconds = 60;
                 CaptureAudio = true;
+                Codec = "libx264";
                 Console.WriteLine("[ConfigManager] Perfil: Balanced (FPS: 20, Bitrate: 1500k, Segment: 60s)");
                 break;
 
@@ -165,7 +170,21 @@ public class RecordingConfig
                 VideoBitrate = 2000;
                 SegmentSeconds = 30;
                 CaptureAudio = true;
+                Codec = "libx264";
                 Console.WriteLine("[ConfigManager] Perfil: Quality (FPS: 30, Bitrate: 2000k, Segment: 30s)");
+                break;
+
+            case RecordingProfile.LowEnd:
+                // Máquinas extremamente fracas (Pentium/Celeron)
+                // MJPEG usa menos CPU/RAM mas gera arquivos 2-3x maiores
+                FPS = 10;
+                SegmentSeconds = 120;
+                CaptureAudio = true;
+                Codec = "mjpeg";
+                VideoQuality = 5; // Quality 5 (1-31, menor=melhor)
+                VideoBitrate = 0; // Não usado com MJPEG (usa quality)
+                Console.WriteLine("[ConfigManager] Perfil: LowEnd (MJPEG, FPS: 10, Quality: 5, Segment: 120s)");
+                Console.WriteLine("[ConfigManager] AVISO: MJPEG gera arquivos 2-3x maiores que H.264!");
                 break;
         }
     }
@@ -185,6 +204,7 @@ public class RecordingConfig
             RecordingProfile.Performance => "Performance - Otimizado para máquinas fracas (~9 MB/min, CPU reduzido em 50%)",
             RecordingProfile.Balanced => "Balanced - Equilíbrio entre qualidade e performance (~12 MB/min, CPU reduzido em 33%)",
             RecordingProfile.Quality => "Quality - Máxima qualidade (~16 MB/min, uso normal de CPU)",
+            RecordingProfile.LowEnd => "LowEnd - Máquinas extremamente fracas, MJPEG (~18 MB/min, CPU mínimo, arquivos 2-3x maiores)",
             _ => "Performance (padrão)"
         };
     }
